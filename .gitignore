@@ -1,0 +1,24 @@
+# Uploaded ticket attachments — user data, never publish these.
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+
+# Compiled/served assets are generated locally.
+assets/*
+!assets/.gitkeep
+
+# Editor and OS noise
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# NOTE: includes/config.php is committed because it ships the XAMPP defaults the
+# installer and README expect (root / empty password / localhost). If you put a real
+# production database password in it, stop tracking it first:
+#     git rm --cached includes/config.php
+# and add the line below.
+# includes/config.php
