@@ -50,7 +50,7 @@ require __DIR__ . '/layout/header.php';
 <div class="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
   <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 md:col-span-2">
     <div class="flex items-center gap-4">
-      <div class="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-sky-500 text-xl font-bold text-white"><?= e(initials($me['name'])) ?></div>
+      <div class="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-brand-400 to-sky-500 text-xl font-bold text-white"><?= e(initials($me['name'])) ?></div>
       <div>
         <h2 class="text-xl font-semibold text-slate-900"><?= e($me['name']) ?></h2>
         <p class="text-sm text-slate-500">ID: <?= e($me['username']) ?> · <?= e($me['email']) ?> · <?= e(ROLE_LABELS[$me['role']] ?? $me['role']) ?></p>
@@ -66,12 +66,12 @@ require __DIR__ . '/layout/header.php';
     <div class="mt-4 space-y-3">
       <div>
         <label class="mb-1 block text-xs text-slate-500">Full name</label>
-        <input name="name" required value="<?= e($me['name']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
+        <input name="name" required value="<?= e($me['name']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
       </div>
       <div>
         <label class="mb-1 block text-xs text-slate-500">Email</label>
         <?php if (is_super()): ?>
-          <input name="email" type="email" required value="<?= e($me['email']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
+          <input name="email" type="email" required value="<?= e($me['email']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
         <?php else: ?>
           <input type="email" value="<?= e($me['email']) ?>" disabled class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-500">
         </div>
@@ -83,9 +83,9 @@ require __DIR__ . '/layout/header.php';
       </div>
       <div>
         <label class="mb-1 block text-xs text-slate-500">Phone</label>
-        <input name="phone" value="<?= e($me['phone'] ?? '') ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
+        <input name="phone" value="<?= e($me['phone'] ?? '') ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
       </div>
-      <button class="w-full rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">Save profile</button>
+      <button class="w-full rounded-xl bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Save profile</button>
     </div>
   </form>
 
@@ -97,7 +97,7 @@ require __DIR__ . '/layout/header.php';
       <?php foreach ([['current_password','Current password'],['new_password','New password'],['confirm_password','Confirm new password']] as [$n,$l]): ?>
         <div>
           <label class="mb-1 block text-xs text-slate-500"><?= $l ?></label>
-          <input name="<?= $n ?>" type="password" required class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
+          <input name="<?= $n ?>" type="password" required class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
         </div>
       <?php endforeach; ?>
       <button class="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Update password</button>

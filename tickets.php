@@ -47,6 +47,17 @@ $status   = get_('status');
 $priority = get_('priority');
 $dept     = (int) get_('dept', '0');
 $mine     = get_('mine') === '1';
+
+/* Period. The list opens on the current month; "all" lifts either limit. */
+$month = get_('month', (string) date('n'));
+$year  = get_('year',  (string) date('Y'));
+if ($month !== 'all' && !(ctype_digit($month) && (int)$month >= 1 && (int)$month <= 12)) {
+    $month = (string) date('n');
+}
+if ($year !== 'all' && !(ctype_digit($year) && strlen($year) === 4)) {
+    $year = (string) date('Y');
+}
+
 $page     = max(1, (int) get_('page', '1'));
 $perPage  = 12;
 
@@ -64,6 +75,8 @@ if ($search !== '') {
 if (isset(STATUSES[$status]))     { $where[] = 't.status = ?';   $args[] = $status; }
 if (isset(PRIORITIES[$priority])) { $where[] = 't.priority = ?'; $args[] = $priority; }
 if ($dept > 0)                    { $where[] = 't.department_id = ?'; $args[] = $dept; }
+if ($year !== 'all')  { $where[] = 'YEAR(t.created_at) = ?';  $args[] = (int) $year; }
+if ($month !== 'all') { $where[] = 'MONTH(t.created_at) = ?'; $args[] = (int) $month; }
 
 $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
@@ -81,13 +94,32 @@ $tickets = q("SELECT t.*, u.name requester_name, a.name agent_name, d.name dept_
               ORDER BY FIELD(t.priority,'urgent','high','medium','low'), t.updated_at DESC
               LIMIT $perPage OFFSET $offset", $args)->fetchAll();
 
-$departments = q('SELECT id, name FROM departments ORDER BY name')->fetchAll();
+$departments = all_departments();
 
-$qs = function (array $over = []) use ($search, $status, $priority, $dept, $mine) {
+/* Offer every year that actually has a ticket, plus the current one. */
+$firstYear = (int) (q('SELECT MIN(YEAR(created_at)) y FROM tickets')->fetch()['y'] ?: date('Y'));
+$years     = range((int) date('Y'), min($firstYear, (int) date('Y')));
+
+$months = [
+    1 => 'January', 2 => 'February', 3 => 'March',      4 => 'April',
+    5 => 'May',     6 => 'June',     7 => 'July',       8 => 'August',
+    9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
+];
+
+/* What the current filter is showing, in words, for the list header. */
+$periodLabel = $year === 'all' && $month === 'all'
+    ? 'All time'
+    : ($month === 'all'
+        ? $year
+        : ($year === 'all' ? $months[(int) $month] . ', all years' : $months[(int) $month] . ' ' . $year));
+
+$qs = function (array $over = []) use ($search, $status, $priority, $dept, $mine, $month, $year) {
     $p = array_filter([
         'q' => $search, 'status' => $status, 'priority' => $priority,
         'dept' => $dept ?: '', 'mine' => $mine ? '1' : '',
     ], fn($v) => $v !== '' && $v !== null);
+    $p['month'] = $month;
+    $p['year']  = $year;
     return http_build_query(array_merge($p, $over));
 };
 
@@ -98,34 +130,46 @@ require __DIR__ . '/layout/header.php';
   <div class="grid gap-3 md:grid-cols-12">
     <div class="md:col-span-4">
       <input name="q" value="<?= e($search) ?>" placeholder="Search subject, code or body…"
-             class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
+             class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
     </div>
-    <select name="status" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500 md:col-span-2">
+    <select name="month" title="Month raised" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
+      <?php foreach ($months as $k => $l): ?>
+        <option value="<?= $k ?>" <?= (int) $month === $k ? 'selected' : '' ?>><?= $l ?></option>
+      <?php endforeach; ?>
+      <option value="all" <?= $month === 'all' ? 'selected' : '' ?>>All months</option>
+    </select>
+    <select name="year" title="Year raised" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
+      <?php foreach ($years as $y): ?>
+        <option value="<?= $y ?>" <?= (int) $year === $y ? 'selected' : '' ?>><?= $y ?></option>
+      <?php endforeach; ?>
+      <option value="all" <?= $year === 'all' ? 'selected' : '' ?>>All years</option>
+    </select>
+    <select name="status" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
       <option value="">All statuses</option>
       <?php foreach (STATUSES as $k => $l): ?>
         <option value="<?= $k ?>" <?= $status === $k ? 'selected' : '' ?>><?= $l ?></option>
       <?php endforeach; ?>
     </select>
-    <select name="priority" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500 md:col-span-2">
+    <select name="priority" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
       <option value="">All priorities</option>
       <?php foreach (PRIORITIES as $k => $l): ?>
         <option value="<?= $k ?>" <?= $priority === $k ? 'selected' : '' ?>><?= $l ?></option>
       <?php endforeach; ?>
     </select>
-    <select name="dept" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500 md:col-span-2">
+    <select name="dept" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-3">
       <option value="">All departments</option>
       <?php foreach ($departments as $d): ?>
         <option value="<?= $d['id'] ?>" <?= $dept === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name']) ?></option>
       <?php endforeach; ?>
     </select>
-    <div class="flex gap-2 md:col-span-2">
-      <button class="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-teal-700">Filter</button>
+    <div class="flex gap-2 md:col-span-3">
+      <button class="flex-1 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600">Filter</button>
       <a href="<?= url('tickets.php') ?>" class="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50">Reset</a>
     </div>
   </div>
   <?php if (is_staff()): ?>
     <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm text-slate-500">
-      <input type="checkbox" name="mine" value="1" <?= $mine ? 'checked' : '' ?> class="h-4 w-4 rounded border-slate-300 bg-slate-50 text-teal-700">
+      <input type="checkbox" name="mine" value="1" <?= $mine ? 'checked' : '' ?> class="h-4 w-4 rounded border-slate-300 bg-slate-50 text-brand-600">
       Only tickets assigned to me
     </label>
   <?php endif; ?>
@@ -133,12 +177,20 @@ require __DIR__ . '/layout/header.php';
 
 <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
   <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
-    <p class="text-sm text-slate-500"><span class="font-semibold text-slate-900"><?= $total ?></span> ticket<?= $total === 1 ? '' : 's' ?></p>
+    <p class="text-sm text-slate-500">
+      <span class="font-semibold text-slate-900"><?= $total ?></span> ticket<?= $total === 1 ? '' : 's' ?>
+      · <span class="text-slate-600"><?= e($periodLabel) ?></span>
+    </p>
     <a href="<?= url('ticket-new.php') ?>" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100">+ New</a>
   </div>
 
   <?php if (!$tickets): ?>
-    <p class="p-12 text-center text-slate-500">No tickets match these filters.</p>
+    <div class="p-12 text-center">
+      <p class="text-slate-500">No tickets match these filters<?= $periodLabel === 'All time' ? '' : ' in ' . e($periodLabel) ?>.</p>
+      <?php if ($month !== 'all' || $year !== 'all'): ?>
+        <a href="?<?= $qs(['month' => 'all', 'year' => 'all', 'page' => 1]) ?>" class="mt-2 inline-block text-sm text-brand-600 hover:text-brand-700">Look across all months →</a>
+      <?php endif; ?>
+    </div>
   <?php else: ?>
     <div class="overflow-x-auto">
       <table class="w-full min-w-[820px] text-left text-sm">
@@ -160,7 +212,7 @@ require __DIR__ . '/layout/header.php';
               <td class="px-5 py-3.5">
                 <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="block max-w-xs">
                   <span class="block truncate font-medium text-slate-900"><?= e($t['subject']) ?></span>
-                  <span class="text-xs text-teal-700"><?= e($t['code']) ?></span>
+                  <span class="text-xs text-brand-600"><?= e($t['code']) ?></span>
                 </a>
               </td>
               <td class="px-5 py-3.5 text-slate-600"><?= e($t['requester_name']) ?></td>
@@ -178,7 +230,7 @@ require __DIR__ . '/layout/header.php';
                           data-subject="<?= e($t['subject']) ?>"
                           data-requester="<?= e($t['requester_name']) ?>"
                           title="Add your resolution and mark it complete"
-                          class="inline-flex items-center gap-1.5 rounded-lg border border-teal-600 px-2.5 py-1.5 text-xs font-semibold text-teal-700 transition hover:bg-teal-50">
+                          class="inline-flex items-center gap-1.5 rounded-lg border border-brand-500 px-2.5 py-1.5 text-xs font-semibold text-brand-600 transition hover:bg-brand-50">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.9 3.8a2.1 2.1 0 013 3L7.5 19.2l-4 1 1-4L16.9 3.8z"/>
                     </svg>
@@ -208,7 +260,7 @@ require __DIR__ . '/layout/header.php';
                   </button>
 
                 <?php else: ?>
-                  <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="text-xs text-teal-700 hover:text-teal-800">Open →</a>
+                  <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="text-xs text-brand-600 hover:text-brand-700">Open →</a>
                 <?php endif; ?>
               </td>
             </tr>
@@ -223,7 +275,7 @@ require __DIR__ . '/layout/header.php';
         <div class="flex gap-1">
           <?php for ($i = 1; $i <= $pages; $i++): ?>
             <a href="?<?= $qs(['page' => $i]) ?>"
-               class="rounded-lg px-3 py-1.5 text-sm <?= $i === $page ? 'bg-teal-600 text-white' : 'text-slate-500 hover:bg-slate-50' ?>"><?= $i ?></a>
+               class="rounded-lg px-3 py-1.5 text-sm <?= $i === $page ? 'bg-brand-500 text-white' : 'text-slate-500 hover:bg-slate-50' ?>"><?= $i ?></a>
           <?php endfor; ?>
         </div>
       </div>
@@ -242,7 +294,7 @@ require __DIR__ . '/layout/header.php';
       <div class="min-w-0">
         <h3 class="text-base font-semibold text-slate-900">Resolve ticket</h3>
         <p class="mt-0.5 truncate text-sm text-slate-500">
-          <span id="rm_code" class="font-medium text-teal-700"></span> · <span id="rm_subject"></span>
+          <span id="rm_code" class="font-medium text-brand-600"></span> · <span id="rm_subject"></span>
         </p>
       </div>
       <button type="button" data-close class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close">
@@ -255,7 +307,7 @@ require __DIR__ . '/layout/header.php';
         <label for="rm_resolution" class="mb-1 block text-sm text-slate-600">Resolution</label>
         <textarea id="rm_resolution" name="resolution" rows="5" required minlength="5"
                   placeholder="What did you do to fix it? This is shown to the person who raised the ticket."
-                  class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/25"></textarea>
+                  class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
       </div>
 
       <div>
@@ -272,7 +324,7 @@ require __DIR__ . '/layout/header.php';
 
     <div class="mt-6 flex justify-end gap-3">
       <button type="button" data-close class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
-      <button type="submit" class="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">Submit</button>
+      <button type="submit" class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">Submit</button>
     </div>
   </form>
 </div>
@@ -287,7 +339,7 @@ require __DIR__ . '/layout/header.php';
     <div class="flex items-start justify-between gap-4">
       <div>
         <h3 class="text-base font-semibold text-slate-900">Raise this ticket again</h3>
-        <p class="mt-0.5 text-sm text-slate-500"><span id="rr_code" class="font-medium text-teal-700"></span></p>
+        <p class="mt-0.5 text-sm text-slate-500"><span id="rr_code" class="font-medium text-brand-600"></span></p>
       </div>
       <button type="button" data-close class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close">
         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
@@ -297,13 +349,13 @@ require __DIR__ . '/layout/header.php';
     <div class="mt-5">
       <label for="rr_reason" class="mb-1 block text-sm text-slate-600">What is still wrong? <span class="text-slate-400">(optional)</span></label>
       <textarea id="rr_reason" name="reason" rows="4" placeholder="e.g. the projector still shows no signal"
-                class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/25"></textarea>
+                class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
       <p class="mt-1.5 text-xs text-slate-500">It goes back to the Super Admin to be assigned to an IT person again.</p>
     </div>
 
     <div class="mt-6 flex justify-end gap-3">
       <button type="button" data-close class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
-      <button type="submit" class="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">Raise again</button>
+      <button type="submit" class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">Raise again</button>
     </div>
   </form>
 </div>

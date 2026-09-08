@@ -77,6 +77,67 @@ try {
     $pdo->exec('UPDATE tickets SET acknowledged_at = closed_at WHERE status = "closed" AND acknowledged_at IS NULL AND closed_at IS NOT NULL');
     $log[] = 'Existing tickets backfilled.';
 
+    // The HR role, and the joiner / leaver records it keeps.
+    $roleType = '';
+    foreach ($pdo->query('SHOW COLUMNS FROM users') as $c) {
+        if ($c['Field'] === 'role') $roleType = $c['Type'];
+    }
+    if (strpos($roleType, "'hr'") !== false) {
+        $log[] = 'users.role already has HR.';
+    } else {
+        $pdo->exec("ALTER TABLE users MODIFY role
+                    ENUM('superadmin','admin','it','employee','hr') NOT NULL DEFAULT 'employee'");
+        $log[] = 'users.role: HR added.';
+    }
+
+    $pdo->exec('CREATE TABLE IF NOT EXISTS onboarding (
+      id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      employee_name VARCHAR(120) NOT NULL,
+      department_id INT UNSIGNED DEFAULT NULL,
+      join_date     DATE NOT NULL,
+      email         VARCHAR(160) DEFAULT NULL,
+      system_spec   TEXT DEFAULT NULL,
+      assets        TEXT DEFAULT NULL,
+      status        ENUM("pending","in_progress","completed") NOT NULL DEFAULT "pending",
+      created_by    INT UNSIGNED DEFAULT NULL,
+      created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_ob_dept (department_id),
+      KEY idx_ob_date (join_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $log[] = 'onboarding ready.';
+
+    $pdo->exec('CREATE TABLE IF NOT EXISTS offboarding (
+      id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      employee_name  VARCHAR(120) NOT NULL,
+      department_id  INT UNSIGNED DEFAULT NULL,
+      last_working_day DATE NOT NULL,
+      email          VARCHAR(160) DEFAULT NULL,
+      assets_returned TEXT DEFAULT NULL,
+      exit_notes     TEXT DEFAULT NULL,
+      status         ENUM("pending","in_progress","completed") NOT NULL DEFAULT "pending",
+      created_by     INT UNSIGNED DEFAULT NULL,
+      created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_off_dept (department_id),
+      KEY idx_off_date (last_working_day)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $log[] = 'offboarding ready.';
+
+    // The Super Admin actions what HR files; these columns record that he did.
+    foreach (['onboarding', 'offboarding'] as $tbl) {
+        $have = [];
+        foreach ($pdo->query("SHOW COLUMNS FROM `$tbl`") as $c) { $have[$c['Field']] = true; }
+        $need = [
+            'admin_done_at' => 'DATETIME DEFAULT NULL',
+            'admin_done_by' => 'INT UNSIGNED DEFAULT NULL',
+            'admin_note'    => 'VARCHAR(255) DEFAULT NULL',
+        ];
+        foreach ($need as $col => $def) {
+            if (isset($have[$col])) { $log[] = "$tbl.$col already present."; continue; }
+            $pdo->exec("ALTER TABLE `$tbl` ADD COLUMN `$col` $def");
+            $log[] = "$tbl.$col added.";
+        }
+    }
+
     $pdo->exec('CREATE TABLE IF NOT EXISTS ticket_work_logs (
       id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
       ticket_id   INT UNSIGNED NOT NULL,

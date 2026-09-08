@@ -66,12 +66,14 @@ function role(): string       { return user()['role'] ?? 'guest'; }
  *  admin      - read-only reports on every employee (tickets + daily tasks)
  *  it         - tickets assigned to them + daily tasks
  *  employee   - raise tickets, watch their status + daily tasks
- * Only IT and Employees keep a task sheet; Super Admin and Admin read the reports.
+ *  hr         - an employee who also runs onboarding and offboarding
+ * Only IT, Employees and HR keep a task sheet; Super Admin and Admin read the reports.
  */
 function is_super(): bool    { return role() === 'superadmin'; }
 function is_admin(): bool    { return role() === 'admin'; }
 function is_it(): bool       { return role() === 'it'; }
 function is_employee(): bool { return role() === 'employee'; }
+function is_hr(): bool       { return role() === 'hr'; }
 
 /** Sees every ticket, including internal notes. */
 function is_staff(): bool          { return in_array(role(), ['superadmin', 'admin', 'it'], true); }
@@ -82,12 +84,30 @@ function can_set_priority(): bool  { return is_super(); }
 /** Only the Super Admin assigns, and re-assigns, a ticket to IT staff. */
 function can_assign(): bool        { return is_super(); }
 /** May open a new ticket. */
-function can_raise_tickets(): bool { return is_super() || is_employee(); }
+function can_raise_tickets(): bool { return is_super() || is_employee() || is_hr(); }
 /**
  * May fill in the daily task sheet. The Super Admin does not keep one — he reads
  * everyone else's through reports.php, filtered by department and person.
  */
-function can_fill_tasks(): bool    { return is_it() || is_employee(); }
+function can_fill_tasks(): bool    { return is_it() || is_employee() || is_hr(); }
+
+/** Runs the joiner / leaver records. HR only - it is their desk, nobody else's. */
+function can_manage_people(): bool { return is_hr(); }
+
+/**
+ * Whatever HR files lands on the Super Admin's desk to be actioned, and is
+ * only finished once he marks it done. This counts what is still waiting.
+ */
+function pending_people_count(): int
+{
+    if (!is_super()) return 0;
+    static $n = null;
+    if ($n === null) {
+        $n = (int) q('SELECT (SELECT COUNT(*) FROM onboarding  WHERE admin_done_at IS NULL)
+                           + (SELECT COUNT(*) FROM offboarding WHERE admin_done_at IS NULL) c')->fetch()['c'];
+    }
+    return $n;
+}
 /** May read the all-employee reports. */
 function can_view_reports(): bool  { return is_super() || is_admin(); }
 
@@ -100,6 +120,12 @@ function require_super(): void
 {
     require_login();
     if (!is_super()) { http_response_code(403); die('403 — Super Admin only.'); }
+}
+
+function require_people(): void
+{
+    require_login();
+    if (!can_manage_people()) { http_response_code(403); die('403 — HR only.'); }
 }
 
 function require_reports(): void
@@ -131,26 +157,26 @@ const PRIORITIES = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urg
 function status_badge(string $s): string
 {
     $map = [
-        'open'     => 'bg-sky-50 text-sky-700 ring-sky-600/20',
-        'pending'  => 'bg-amber-50 text-amber-700 ring-amber-600/20',
-        'resolved' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-        'closed'   => 'bg-slate-100 text-slate-600 ring-slate-500/20',
+        'open'     => 'text-zinc-700 border-zinc-200 bg-white [&>span]:bg-brand-500',
+        'pending'  => 'text-zinc-700 border-zinc-200 bg-white [&>span]:bg-amber-500',
+        'resolved' => 'text-zinc-700 border-zinc-200 bg-white [&>span]:bg-emerald-500',
+        'closed'   => 'text-zinc-500 border-zinc-200 bg-zinc-50 [&>span]:bg-zinc-400',
     ];
     $c = $map[$s] ?? $map['closed'];
-    return '<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ' . $c . '">'
-        . '<span class="h-1.5 w-1.5 rounded-full bg-current"></span>' . e(STATUSES[$s] ?? $s) . '</span>';
+    return '<span class="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium ' . $c . '">'
+        . '<span class="h-1.5 w-1.5 rounded-full"></span>' . e(STATUSES[$s] ?? $s) . '</span>';
 }
 
 function priority_badge(string $p): string
 {
     $map = [
-        'low'    => 'bg-slate-100 text-slate-600 ring-slate-500/20',
-        'medium' => 'bg-teal-50 text-teal-700 ring-teal-600/20',
-        'high'   => 'bg-orange-50 text-orange-700 ring-orange-600/20',
-        'urgent' => 'bg-rose-50 text-rose-700 ring-rose-600/20',
+        'low'    => 'border-zinc-200 bg-zinc-50 text-zinc-500',
+        'medium' => 'border-zinc-200 bg-white text-zinc-600',
+        'high'   => 'border-amber-200 bg-amber-50 text-amber-700',
+        'urgent' => 'border-rose-200 bg-rose-50 text-rose-700',
     ];
     $c = $map[$p] ?? $map['low'];
-    return '<span class="rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ' . $c . '">' . e(PRIORITIES[$p] ?? $p) . '</span>';
+    return '<span class="inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium ' . $c . '">' . e(PRIORITIES[$p] ?? $p) . '</span>';
 }
 
 /** True while the requester still has to acknowledge the IT person's work. */
@@ -200,7 +226,23 @@ function log_activity(int $ticketId, string $action, string $detail = ''): void
         [$ticketId, user()['id'] ?? null, $action, $detail]);
 }
 
-const ROLE_LABELS = ['superadmin'=>'Super Admin', 'admin'=>'Admin', 'it'=>'IT', 'employee'=>'Employee'];
+const ROLE_LABELS = ['superadmin'=>'Super Admin', 'admin'=>'Admin', 'it'=>'IT', 'employee'=>'Employee', 'hr'=>'HR'];
+
+/* Where a joiner or a leaver has got to. */
+const ONBOARD_STATUSES  = ['pending'=>'Pending', 'in_progress'=>'In Progress', 'completed'=>'Completed'];
+const OFFBOARD_STATUSES = ['pending'=>'Pending', 'in_progress'=>'In Progress', 'completed'=>'Completed'];
+
+function people_status_badge(string $s): string
+{
+    $map = [
+        'pending'     => 'border-zinc-200 bg-zinc-50 text-zinc-500 [&>span]:bg-zinc-400',
+        'in_progress' => 'border-zinc-200 bg-white text-zinc-700 [&>span]:bg-amber-500',
+        'completed'   => 'border-zinc-200 bg-white text-zinc-700 [&>span]:bg-emerald-500',
+    ];
+    $c = $map[$s] ?? $map['pending'];
+    return '<span class="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium ' . $c . '">'
+        . '<span class="h-1.5 w-1.5 rounded-full"></span>' . e(ONBOARD_STATUSES[$s] ?? $s) . '</span>';
+}
 const TASK_STATUSES = ['completed'=>'Completed', 'in_progress'=>'In Progress', 'pending'=>'Pending', 'blocked'=>'Blocked'];
 
 /** Dot colour + row icon tint for each task status. */
@@ -227,9 +269,18 @@ function ticket_scope(string $a = 't'): array
 }
 
 /** Every department, for the pickers and the report filter. */
+/**
+ * The one department list. Tickets, reports, onboarding and offboarding all
+ * read it from here, so what the Departments page holds is what every dropdown
+ * in the app offers - there is no second list anywhere.
+ */
 function all_departments(): array
 {
-    return q('SELECT id, name FROM departments ORDER BY name')->fetchAll();
+    static $rows = null;
+    if ($rows === null) {
+        $rows = q('SELECT id, name FROM departments ORDER BY name')->fetchAll();
+    }
+    return $rows;
 }
 
 /** Active IT accounts, in the order they should appear in an assignee picker. */

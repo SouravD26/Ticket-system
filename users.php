@@ -1,19 +1,33 @@
 <?php
 /**
  * Account management — Super Admin only.
- * Create Admin / IT / Employee accounts, change their email, reset passwords.
+ * Create Admin / IT / Employee accounts, edit them, reset passwords.
  */
 require_once __DIR__ . '/includes/functions.php';
 require_super();
 $me = user();
 
-$assignable  = ['employee' => 'Employee', 'it' => 'IT', 'admin' => 'Admin', 'superadmin' => 'Super Admin'];
+/* Super Admin is handed out by a Super Admin and nobody else - it is the only
+   role that can create more of itself, so it is gated separately from the rest
+   even though this page is Super Admin-only to begin with. */
+$assignable = ['employee' => 'Employee', 'hr' => 'HR', 'it' => 'IT', 'admin' => 'Admin'];
+if (is_super()) { $assignable['superadmin'] = 'Super Admin'; }
+/* Role and department are two separate things: what the account may do, and
+   which department's queue it belongs to. The list comes from the one source
+   every other page reads. */
 $departments = all_departments();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $action = post('action');
     $id     = (int) post('id');
+    $self   = $id === (int) $me['id'];
+
+    // Belt and braces: never let the role through on a forged post.
+    if (post('role') === 'superadmin' && !is_super()) {
+        flash('Only a Super Admin can create a Super Admin account.', 'error');
+        redirect('users.php');
+    }
 
     if ($action === 'create') {
         $name     = post('name');
@@ -21,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email    = post('email');
         $pass     = post('password');
         $role     = post('role', 'employee');
+        $dept     = (int) post('department_id');
 
         if ($name === '' || !preg_match('/^[A-Za-z0-9._-]{3,60}$/', $username) || strlen($pass) < 6) {
             flash('Name, a user ID (3+ chars, letters/numbers/._-) and a 6+ character password are required.', 'error');
@@ -28,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('That email address is not valid.', 'error');
         } elseif (!isset($assignable[$role])) {
             flash('Invalid role.', 'error');
+        } elseif ($dept && !q('SELECT id FROM departments WHERE id = ?', [$dept])->fetch()) {
+            flash('That department no longer exists.', 'error');
         } elseif (q('SELECT id FROM users WHERE username = ?', [$username])->fetch()) {
             flash('That user ID is already taken.', 'error');
         } elseif ($email !== '' && q('SELECT id FROM users WHERE email = ?', [$email])->fetch()) {
@@ -35,52 +52,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             q('INSERT INTO users (name, username, email, password, role, phone, department_id) VALUES (?,?,?,?,?,?,?)',
               [$name, $username, $email ?: $username . '@local', password_hash($pass, PASSWORD_DEFAULT), $role,
-               post('phone') ?: null, (int) post('department_id') ?: null]);
+               post('phone') ?: null, $dept ?: null]);
             flash($assignable[$role] . ' account "' . $username . '" created.');
         }
     }
 
-    if ($action === 'email') {
+    /* One save for the whole row: details, role, status, password. */
+    if ($action === 'update' && $id) {
+        $name  = post('name');
         $email = post('email');
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $pass  = post('password');
+        $role  = post('role');
+        $dept  = (int) post('department_id');
+
+        if ($name === '') {
+            flash('Name is required.', 'error');
+        } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             flash('That email address is not valid.', 'error');
-        } elseif (q('SELECT id FROM users WHERE email = ? AND id <> ?', [$email, $id])->fetch()) {
+        } elseif ($email !== '' && q('SELECT id FROM users WHERE email = ? AND id <> ?', [$email, $id])->fetch()) {
             flash('Another account already uses that email.', 'error');
-        } else {
-            q('UPDATE users SET email = ? WHERE id = ?', [$email, $id]);
-            flash('Email updated.');
-        }
-    }
-
-    if ($action === 'role' && $id !== (int)$me['id']) {
-        $role = post('role');
-        if (isset($assignable[$role])) {
-            q('UPDATE users SET role = ? WHERE id = ?', [$role, $id]);
-            flash('Role updated.');
-        }
-    }
-
-    if ($action === 'department') {
-        $dept = (int) post('department_id');
-        if ($dept && !q('SELECT id FROM departments WHERE id = ?', [$dept])->fetch()) {
+        } elseif ($pass !== '' && strlen($pass) < 6) {
+            flash('A new password must be at least 6 characters.', 'error');
+        } elseif ($dept && !q('SELECT id FROM departments WHERE id = ?', [$dept])->fetch()) {
             flash('That department no longer exists.', 'error');
         } else {
-            q('UPDATE users SET department_id = ? WHERE id = ?', [$dept ?: null, $id]);
-            flash('Department updated.');
+            // Your own role and your own switch stay out of reach - locking
+            // yourself out of the only Super Admin account is unrecoverable.
+            $role   = (!$self && isset($assignable[$role])) ? $role : null;
+            $active = $self ? null : (post('is_active') === '1' ? 1 : 0);
+
+            // email is NOT NULL in the schema: an empty box means "leave it alone".
+            q('UPDATE users SET name = ?, email = COALESCE(?, email), phone = ?, department_id = ?,
+                                role = COALESCE(?, role), is_active = COALESCE(?, is_active)
+               WHERE id = ?',
+              [$name, $email ?: null, post('phone') ?: null, $dept ?: null, $role, $active, $id]);
+
+            if ($pass !== '') {
+                q('UPDATE users SET password = ? WHERE id = ?', [password_hash($pass, PASSWORD_DEFAULT), $id]);
+            }
+            flash('Account updated.' . ($pass !== '' ? ' Password reset.' : ''));
         }
+        redirect('users.php');
     }
 
-    if ($action === 'toggle' && $id !== (int)$me['id']) {
-        q('UPDATE users SET is_active = 1 - is_active WHERE id = ?', [$id]);
-        flash('Account status changed.');
-    }
-
-    if ($action === 'reset' && strlen(post('password')) >= 6) {
-        q('UPDATE users SET password = ? WHERE id = ?', [password_hash(post('password'), PASSWORD_DEFAULT), $id]);
-        flash('Password reset.');
-    }
-
-    if ($action === 'delete' && $id !== (int)$me['id']) {
+    if ($action === 'delete' && !$self) {
         q('DELETE FROM users WHERE id = ?', [$id]);
         flash('Account deleted along with its tickets and task entries.');
     }
@@ -88,149 +103,160 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('users.php');
 }
 
-$users = q('SELECT u.*, d.name AS dept_name,
-                   (SELECT COUNT(*) FROM tickets t WHERE t.user_id = u.id)     AS opened,
-                   (SELECT COUNT(*) FROM tickets t WHERE t.assigned_to = u.id) AS assigned,
-                   (SELECT COUNT(*) FROM daily_tasks dt WHERE dt.user_id = u.id) AS tasks
+// One row is put into edit mode at a time, by ?edit=<id>.
+$editing = (int) get_('edit', '0');
+
+$users = q('SELECT u.*, d.name AS dept_name
             FROM users u
             LEFT JOIN departments d ON d.id = u.department_id
-            ORDER BY FIELD(u.role,"superadmin","admin","it","employee"), u.name')->fetchAll();
+            ORDER BY FIELD(u.role,"superadmin","admin","hr","it","employee"), u.name')->fetchAll();
 
 $pageTitle = 'Users';
 require __DIR__ . '/layout/header.php';
+
+$field = 'w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-400';
+
+/** The department this account belongs to, or none. */
+function dept_select(int $dept, array $departments, string $field): string
+{
+    $out = '<select name="department_id" title="Department" class="' . $field . '">';
+    $out .= '<option value=""' . (!$dept ? ' selected' : '') . '>No department</option>';
+    foreach ($departments as $d) {
+        $out .= '<option value="' . $d['id'] . '"' . ($dept === (int) $d['id'] ? ' selected' : '') . '>'
+              . e($d['name']) . '</option>';
+    }
+    return $out . '</select>';
+}
+
+/** One dropdown, one choice: which kind of account this is. */
+function role_select(string $role, array $roles, string $field): string
+{
+    $out = '<select name="role" title="Role" class="' . $field . '">';
+    foreach ($roles as $k => $label) {
+        $out .= '<option value="' . $k . '"' . ($role === $k ? ' selected' : '') . '>' . e($label) . '</option>';
+    }
+    return $out . '</select>';
+}
 ?>
-<div class="grid gap-4 lg:grid-cols-3">
-  <form method="post" class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 lg:order-2">
+<div class="mx-auto max-w-4xl">
+
+  <!-- Add an account. Users cannot register themselves. -->
+  <form method="post" class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="create">
-    <h3 class="text-sm font-semibold text-slate-900">Add an account</h3>
-    <p class="mt-1 text-xs text-slate-500">Users cannot register themselves — every account is created here.</p>
-    <div class="mt-4 space-y-3">
-      <input name="name" required placeholder="Full name" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-      <input name="username" required pattern="[A-Za-z0-9._-]{3,60}" placeholder="User ID (used to sign in)" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-      <input name="email" type="email" placeholder="Email (optional)" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-      <input name="phone" placeholder="Phone (optional)" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-      <input name="password" type="password" required minlength="6" placeholder="Temporary password" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-      <select name="role" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-        <?php foreach ($assignable as $k => $l): ?>
-          <option value="<?= $k ?>"><?= e($l) ?></option>
-        <?php endforeach; ?>
-      </select>
-      <select name="department_id" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-        <option value="">— No department —</option>
-        <?php foreach ($departments as $d): ?>
-          <option value="<?= $d['id'] ?>"><?= e($d['name']) ?></option>
-        <?php endforeach; ?>
-      </select>
-      <button class="w-full rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">Create account</button>
+    <div class="flex items-baseline justify-between gap-3">
+      <h2 class="text-[13px] font-semibold text-zinc-900">Add an account</h2>
+      <p class="text-[11px] text-zinc-500">Every account is created here.</p>
     </div>
-
-    <div class="mt-5 space-y-1 border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-500">
-      <p><span class="text-slate-600">Super Admin</span> — full access, creates accounts, assigns tickets to IT.</p>
-      <p><span class="text-slate-600">Admin</span> — reports on every employee, read only.</p>
-      <p><span class="text-slate-600">IT</span> — assigned tickets + daily tasks.</p>
-      <p><span class="text-slate-600">Employee</span> — raise tickets, track status, daily tasks.</p>
-      <p class="pt-1">The department groups people in the daily-task reports. Super Admin and Admin do not keep a task sheet.</p>
+    <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <input name="name" required placeholder="Full name" class="<?= $field ?>">
+      <input name="username" required pattern="[A-Za-z0-9._-]{3,60}" placeholder="User ID (used to sign in)" class="<?= $field ?>">
+      <input name="password" type="password" required minlength="6" placeholder="Temporary password" class="<?= $field ?>">
+      <input name="email" type="email" placeholder="Email (optional)" class="<?= $field ?>">
+      <input name="phone" placeholder="Phone (optional)" class="<?= $field ?>">
+      <?= role_select('employee', $assignable, $field) ?>
+      <?= dept_select(0, $departments, $field) ?>
     </div>
+    <button class="mt-3 rounded-md bg-brand-500 px-4 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-brand-600">Create account</button>
   </form>
 
-  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
-    <div class="border-b border-slate-200 px-5 py-3.5">
-      <h3 class="text-sm font-semibold text-slate-900"><?= count($users) ?> accounts</h3>
+  <div class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5">
+      <h2 class="text-[13px] font-semibold text-zinc-900">Accounts</h2>
+      <span class="rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums"><?= count($users) ?></span>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full min-w-[1040px] text-left text-sm">
-        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th class="px-5 py-3 font-medium">User</th>
-            <th class="px-5 py-3 font-medium">Role</th>
-            <th class="px-5 py-3 font-medium">Department</th>
-            <th class="px-5 py-3 font-medium">Activity</th>
-            <th class="px-5 py-3 font-medium">Status</th>
-            <th class="px-5 py-3 font-medium text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-200">
-          <?php foreach ($users as $u): $self = (int)$u['id'] === (int)$me['id']; ?>
-            <tr class="hover:bg-slate-50">
-              <td class="px-5 py-3.5">
-                <div class="flex items-center gap-3">
-                  <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-900"><?= e(initials($u['name'])) ?></div>
-                  <div class="min-w-0">
-                    <p class="truncate font-medium text-slate-900"><?= e($u['name']) ?><?= $self ? ' <span class="text-xs text-slate-500">(you)</span>' : '' ?></p>
-                    <p class="truncate text-xs text-slate-500">ID: <span class="text-slate-500"><?= e($u['username']) ?></span> · <?= e($u['email']) ?></p>
-                  </div>
+
+    <ul class="divide-y divide-zinc-100">
+      <?php foreach ($users as $u): $self = (int) $u['id'] === (int) $me['id']; ?>
+        <li class="px-4 py-2.5">
+          <?php if ($editing === (int) $u['id']): ?>
+
+            <!-- Edit mode: the whole account, saved in one go. -->
+            <form method="post" class="space-y-2">
+              <?= csrf_field() ?>
+              <input type="hidden" name="action" value="update">
+              <input type="hidden" name="id" value="<?= $u['id'] ?>">
+
+              <div class="flex items-center gap-2 text-[11px] text-zinc-500">
+                <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-50 text-[11px] font-semibold text-brand-600"><?= e(initials($u['name'])) ?></span>
+                Editing <span class="font-medium text-zinc-700"><?= e($u['username']) ?></span> — the user ID cannot be changed<?= $self ? ', and your own role is fixed' : '' ?>.
+              </div>
+
+              <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <input name="name" value="<?= e($u['name']) ?>" required placeholder="Full name" class="<?= $field ?>">
+                <input name="email" type="email" value="<?= e($u['email']) ?>" placeholder="Email" class="<?= $field ?>">
+                <input name="phone" value="<?= e($u['phone'] ?? '') ?>" placeholder="Phone" class="<?= $field ?>">
+
+                <?= role_select($u['role'], $assignable, $field) ?>
+                <?= dept_select((int) $u['department_id'], $departments, $field) ?>
+
+                <input name="password" type="password" minlength="6" placeholder="New password (leave blank to keep)" class="<?= $field ?>">
+              </div>
+
+              <div class="flex flex-wrap items-center gap-3 pt-1">
+                <?php if (!$self): ?>
+                  <label class="inline-flex cursor-pointer items-center gap-2 text-[12px] text-zinc-600">
+                    <input type="checkbox" name="is_active" value="1" <?= $u['is_active'] ? 'checked' : '' ?> class="h-3.5 w-3.5 rounded border-zinc-300">
+                    Account active
+                  </label>
+                <?php endif; ?>
+                <div class="ml-auto flex items-center gap-1.5">
+                  <button class="rounded-md bg-brand-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition hover:bg-brand-600">Save</button>
+                  <a href="<?= url('users.php') ?>" class="rounded-md border border-zinc-200 px-3 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50">Cancel</a>
                 </div>
-              </td>
-              <td class="px-5 py-3.5">
-                <?php if ($self): ?>
-                  <span class="text-slate-500"><?= e(ROLE_LABELS[$u['role']] ?? $u['role']) ?></span>
-                <?php else: ?>
-                  <form method="post" class="inline">
-                    <?= csrf_field() ?>
-                    <input type="hidden" name="action" value="role">
-                    <input type="hidden" name="id" value="<?= $u['id'] ?>">
-                    <select name="role" onchange="this.form.submit()" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-teal-500">
-                      <?php foreach ($assignable as $k => $l): ?>
-                        <option value="<?= $k ?>" <?= $u['role'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
-                      <?php endforeach; ?>
-                    </select>
-                  </form>
-                <?php endif; ?>
-              </td>
-              <td class="px-5 py-3.5">
-                <form method="post" class="inline">
-                  <?= csrf_field() ?>
-                  <input type="hidden" name="action" value="department">
-                  <input type="hidden" name="id" value="<?= $u['id'] ?>">
-                  <select name="department_id" onchange="this.form.submit()"
-                          class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-teal-500">
-                    <option value="">— None —</option>
-                    <?php foreach ($departments as $d): ?>
-                      <option value="<?= $d['id'] ?>" <?= (int)$u['department_id'] === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name']) ?></option>
-                    <?php endforeach; ?>
-                  </select>
-                </form>
-              </td>
-              <td class="whitespace-nowrap px-5 py-3.5 text-xs text-slate-500">
-                <?= (int)$u['opened'] ?> raised · <?= (int)$u['assigned'] ?> assigned · <?= (int)$u['tasks'] ?> tasks
-              </td>
-              <td class="px-5 py-3.5">
-                <?php if ($u['is_active']): ?>
-                  <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Active</span>
-                <?php else: ?>
-                  <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-500 ring-1 ring-inset ring-slate-500/20">Disabled</span>
-                <?php endif; ?>
-              </td>
-              <td class="px-5 py-3.5">
-                <div class="flex flex-wrap justify-end gap-2">
-                  <form method="post" onsubmit="var m=prompt('New email address', this.email.value);if(!m)return false;this.email.value=m;"><?= csrf_field() ?>
-                    <input type="hidden" name="action" value="email"><input type="hidden" name="id" value="<?= $u['id'] ?>">
-                    <input type="hidden" name="email" value="<?= e($u['email']) ?>">
-                    <button class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100">Email</button>
-                  </form>
-                  <form method="post" onsubmit="var p=prompt('New password (min 6 chars)');if(!p||p.length<6)return false;this.password.value=p;"><?= csrf_field() ?>
-                    <input type="hidden" name="action" value="reset"><input type="hidden" name="id" value="<?= $u['id'] ?>">
-                    <input type="hidden" name="password" value="">
-                    <button class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100">Reset PW</button>
-                  </form>
-                  <?php if (!$self): ?>
-                    <form method="post"><?= csrf_field() ?>
-                      <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= $u['id'] ?>">
-                      <button class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100"><?= $u['is_active'] ? 'Disable' : 'Enable' ?></button>
-                    </form>
-                    <form method="post" onsubmit="return confirm('Delete <?= e($u['name']) ?> along with their tickets and tasks?');"><?= csrf_field() ?>
-                      <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= $u['id'] ?>">
-                      <button class="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs text-rose-700 hover:bg-rose-100">Delete</button>
-                    </form>
+              </div>
+            </form>
+
+          <?php else: ?>
+
+            <div class="flex items-center gap-3">
+              <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-600"><?= e(initials($u['name'])) ?></span>
+
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-[13px] font-medium text-zinc-900">
+                  <?= e($u['name']) ?>
+                  <?= $self ? '<span class="font-normal text-zinc-400">(you)</span>' : '' ?>
+                  <?php if (!$u['is_active']): ?>
+                    <span class="ml-1 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500">Disabled</span>
                   <?php endif; ?>
-                </div>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
+                </p>
+                <p class="truncate text-[11px] text-zinc-500">
+                  <?= e($u['username']) ?>
+                  · <?= e(ROLE_LABELS[$u['role']] ?? $u['role']) ?>
+                  · <?= e($u['dept_name'] ?? 'No department') ?>
+                </p>
+              </div>
+
+              <div class="flex shrink-0 items-center gap-1.5">
+                <a href="?edit=<?= $u['id'] ?>"
+                   class="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50">
+                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.9 3.8a2.1 2.1 0 013 3L7.5 19.2l-4 1 1-4L16.9 3.8z"/>
+                  </svg>
+                  Edit
+                </a>
+
+                <?php if (!$self): ?>
+                  <form method="post" class="inline"
+                        onsubmit="return confirm('Delete <?= e(addslashes($u['name'])) ?> along with their tickets and tasks?');">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                    <button class="inline-flex items-center gap-1.5 rounded-md border border-rose-200 px-2.5 py-1.5 text-[12px] font-medium text-rose-700 transition hover:bg-rose-50">
+                      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6"/>
+                      </svg>
+                      Delete
+                    </button>
+                  </form>
+                <?php endif; ?>
+              </div>
+            </div>
+
+          <?php endif; ?>
+        </li>
+      <?php endforeach; ?>
+    </ul>
   </div>
 </div>
 <?php require __DIR__ . '/layout/footer.php'; ?>

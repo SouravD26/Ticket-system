@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   username      VARCHAR(60)  NOT NULL UNIQUE,
   email         VARCHAR(160) NOT NULL UNIQUE,
   password      VARCHAR(255) NOT NULL,
-  role          ENUM('superadmin','admin','it','employee') NOT NULL DEFAULT 'employee',
+  role          ENUM('superadmin','admin','it','employee','hr') NOT NULL DEFAULT 'employee',
   phone         VARCHAR(40)  DEFAULT NULL,
   department_id INT UNSIGNED DEFAULT NULL,
   is_active     TINYINT(1)   NOT NULL DEFAULT 1,
@@ -20,6 +20,43 @@ CREATE TABLE IF NOT EXISTS departments (
   name        VARCHAR(120) NOT NULL UNIQUE,
   description VARCHAR(255) DEFAULT NULL,
   created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- HR keeps a record for every joiner and every leaver.
+CREATE TABLE IF NOT EXISTS onboarding (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  employee_name VARCHAR(120) NOT NULL,
+  department_id INT UNSIGNED DEFAULT NULL,
+  join_date     DATE NOT NULL,
+  email         VARCHAR(160) DEFAULT NULL,
+  system_spec   TEXT DEFAULT NULL,
+  assets        TEXT DEFAULT NULL,
+  status        ENUM('pending','in_progress','completed') NOT NULL DEFAULT 'pending',
+  created_by    INT UNSIGNED DEFAULT NULL,
+  admin_done_at DATETIME DEFAULT NULL,
+  admin_done_by INT UNSIGNED DEFAULT NULL,
+  admin_note    VARCHAR(255) DEFAULT NULL,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_ob_dept (department_id),
+  KEY idx_ob_date (join_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS offboarding (
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  employee_name  VARCHAR(120) NOT NULL,
+  department_id  INT UNSIGNED DEFAULT NULL,
+  last_working_day DATE NOT NULL,
+  email          VARCHAR(160) DEFAULT NULL,
+  assets_returned TEXT DEFAULT NULL,
+  exit_notes     TEXT DEFAULT NULL,
+  status         ENUM('pending','in_progress','completed') NOT NULL DEFAULT 'pending',
+  created_by     INT UNSIGNED DEFAULT NULL,
+  admin_done_at  DATETIME DEFAULT NULL,
+  admin_done_by  INT UNSIGNED DEFAULT NULL,
+  admin_note     VARCHAR(255) DEFAULT NULL,
+  created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_off_dept (department_id),
+  KEY idx_off_date (last_working_day)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS tickets (

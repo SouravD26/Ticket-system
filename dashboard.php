@@ -81,10 +81,10 @@ $assignHere = can_assign();
 $agents     = $assignHere ? it_agents() : [];
 
 $cards = [
-  ['Total tickets', (int)$counts['total'],      'from-indigo-500 to-violet-500'],
-  ['Open',          (int)$counts['open_c'],     'from-sky-500 to-cyan-500'],
-  [STATUSES['pending'],  (int)$counts['pending_c'],  'from-amber-500 to-orange-500'],
-  [STATUSES['resolved'], (int)$counts['resolved_c'], 'from-emerald-500 to-teal-500'],
+  ['Total tickets', (int)$counts['total'],      'bg-brand-500'],
+  ['Open',          (int)$counts['open_c'],     'bg-sky-500'],
+  [STATUSES['pending'],  (int)$counts['pending_c'],  'bg-amber-500'],
+  [STATUSES['resolved'], (int)$counts['resolved_c'], 'bg-emerald-500'],
 ];
 
 // Daily-task summary for the roles that keep a sheet.
@@ -99,39 +99,41 @@ $taskStats = can_fill_tasks()
 $pageTitle = 'Dashboard';
 require __DIR__ . '/layout/header.php';
 ?>
-<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-  <?php foreach ($cards as [$label, $value, $grad]): ?>
-    <div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-      <div class="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br <?= $grad ?> opacity-20 blur-2xl"></div>
-      <p class="text-sm text-slate-500"><?= e($label) ?></p>
-      <p class="mt-2 text-3xl font-semibold text-slate-900"><?= $value ?></p>
+<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+  <?php foreach ($cards as [$label, $value, $accent]): ?>
+    <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+      <div class="flex items-center gap-2">
+        <span class="h-1.5 w-1.5 rounded-full <?= $accent ?>"></span>
+        <p class="text-[11px] font-medium uppercase tracking-wider text-zinc-400"><?= e($label) ?></p>
+      </div>
+      <p class="mt-2 text-[26px] font-semibold leading-none tracking-tight text-zinc-900 tabular-nums"><?= $value ?></p>
     </div>
   <?php endforeach; ?>
 </div>
 
 <?php if ($queue): ?>
-  <div class="mt-4 overflow-hidden rounded-2xl border border-teal-300 bg-teal-50/40 shadow-sm">
-    <div class="flex items-center justify-between border-b border-teal-200 px-5 py-4">
-      <h2 class="text-sm font-semibold text-slate-900"><?= e($queueTitle) ?>
-        <span class="ml-1 rounded-full bg-teal-100 px-2 py-0.5 text-xs text-teal-800"><?= count($queue) ?></span>
+  <div class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5">
+      <h2 class="flex items-center gap-2 text-[13px] font-semibold text-zinc-900"><?= e($queueTitle) ?>
+        <span class="rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums"><?= count($queue) ?></span>
       </h2>
-      <a href="<?= url('tickets.php') ?>" class="text-sm text-teal-700 hover:text-teal-800">All tickets →</a>
+      <a href="<?= url('tickets.php') ?>" class="text-[13px] font-medium text-zinc-500 hover:text-zinc-900">All tickets &rarr;</a>
     </div>
 
     <?php if ($assignHere && !$agents): ?>
-      <p class="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+      <p class="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-800">
         There are no active IT accounts yet, so there is nobody to assign these to.
-        <a href="<?= url('users.php') ?>" class="font-semibold underline">Create an IT account →</a>
+        <a href="<?= url('users.php') ?>" class="font-medium underline">Create an IT account &rarr;</a>
       </p>
     <?php endif; ?>
 
-    <ul class="divide-y divide-teal-200/70 bg-white">
+    <ul class="divide-y divide-zinc-100">
       <?php foreach ($queue as $t): ?>
-        <li class="flex flex-col gap-3 px-5 py-3.5 transition hover:bg-slate-50 lg:flex-row lg:items-center lg:gap-4">
+        <li class="flex flex-col gap-2.5 px-4 py-2.5 transition hover:bg-zinc-50 lg:flex-row lg:items-center lg:gap-4">
           <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-slate-900"><?= e($t['subject']) ?></p>
-            <p class="truncate text-xs text-slate-500">
-              <?= e($t['code']) ?> · <?= e($t['requester_name']) ?> · raised <?= e(time_ago($t['created_at'])) ?>
+            <p class="truncate text-[13px] font-medium text-zinc-900"><?= e($t['subject']) ?></p>
+            <p class="truncate text-[11px] text-zinc-500">
+              <span class="font-medium text-zinc-400"><?= e($t['code']) ?></span> &middot; <?= e($t['requester_name']) ?> &middot; raised <?= e(time_ago($t['created_at'])) ?>
             </p>
           </a>
 
@@ -142,7 +144,7 @@ require __DIR__ . '/layout/header.php';
               <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
 
               <select name="priority" title="Priority"
-                      class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700 outline-none focus:border-teal-500">
+                      class="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-[12px] text-zinc-700 outline-none focus:border-brand-400">
                 <?php foreach (PRIORITIES as $k => $l): ?>
                   <option value="<?= $k ?>" <?= $t['priority'] === $k ? 'selected' : '' ?>><?= $l ?></option>
                 <?php endforeach; ?>
@@ -150,30 +152,30 @@ require __DIR__ . '/layout/header.php';
 
               <!-- type-to-search picker; the hidden input carries the chosen id -->
               <div class="relative" data-picker>
-                <input type="text" data-search placeholder="Search IT staff…" autocomplete="off"
+                <input type="text" data-search placeholder="Search IT staff&hellip;" autocomplete="off"
                        role="combobox" aria-expanded="false" aria-autocomplete="list"
-                       class="w-44 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-teal-500">
+                       class="w-44 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-brand-400">
                 <input type="hidden" name="assigned_to" data-value>
                 <ul data-list role="listbox"
-                    class="fixed z-[100] hidden max-h-56 w-56 overflow-auto overscroll-contain rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+                    class="fixed z-[100] hidden max-h-56 w-56 overflow-auto overscroll-contain rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
                   <?php foreach ($agents as $a): ?>
                     <li role="option" data-id="<?= $a['id'] ?>" data-name="<?= e($a['name']) ?>"
-                        class="cursor-pointer px-3 py-2 text-xs text-slate-700 hover:bg-teal-50">
-                      <span class="font-medium text-slate-900"><?= e($a['name']) ?></span>
-                      <span class="text-slate-500"><?= e($a['username']) ?></span>
+                        class="cursor-pointer px-2.5 py-1.5 text-[12px] text-zinc-600 hover:bg-zinc-50">
+                      <span class="font-medium text-zinc-900"><?= e($a['name']) ?></span>
+                      <span class="text-zinc-400"><?= e($a['username']) ?></span>
                     </li>
                   <?php endforeach; ?>
-                  <li data-empty class="hidden px-3 py-2 text-xs text-slate-500">No IT person matches that name.</li>
+                  <li data-empty class="hidden px-2.5 py-1.5 text-[12px] text-zinc-500">No IT person matches that name.</li>
                 </ul>
               </div>
 
               <button type="submit" data-send disabled
-                      class="rounded-lg bg-teal-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
-                Send
+                      class="rounded-md bg-brand-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 disabled:shadow-none">
+                Assign
               </button>
             </form>
           <?php else: ?>
-            <div class="flex shrink-0 items-center gap-2">
+            <div class="flex shrink-0 items-center gap-1.5">
               <?= priority_badge($t['priority']) ?><?= status_badge($t['status']) ?>
             </div>
           <?php endif; ?>
@@ -230,9 +232,9 @@ require __DIR__ . '/layout/header.php';
 
       function highlight(i) {
         var vis = visible();
-        vis.forEach(function (o) { o.classList.remove('bg-teal-50'); });
+        vis.forEach(function (o) { o.classList.remove('bg-zinc-100'); });
         active = i;
-        if (i >= 0 && vis[i]) { vis[i].classList.add('bg-teal-50'); vis[i].scrollIntoView({ block: 'nearest' }); }
+        if (i >= 0 && vis[i]) { vis[i].classList.add('bg-zinc-100'); vis[i].scrollIntoView({ block: 'nearest' }); }
       }
 
       function filter() {
@@ -283,52 +285,55 @@ require __DIR__ . '/layout/header.php';
   </script>
 <?php endif; ?>
 
-<div class="mt-4 grid gap-4 lg:grid-cols-3">
-  <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5 lg:col-span-1">
-    <h2 class="text-sm font-semibold text-slate-900">Status breakdown</h2>
+<div class="mt-3 grid gap-3 lg:grid-cols-3">
+  <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm lg:col-span-1">
+    <h2 class="text-[13px] font-semibold text-zinc-900">Status breakdown</h2>
     <?php
     $total = max(1, (int)$counts['total']);
     $bars = [
       ['Open', (int)$counts['open_c'], 'bg-sky-500'],
       [STATUSES['pending'], (int)$counts['pending_c'], 'bg-amber-500'],
       [STATUSES['resolved'], (int)$counts['resolved_c'], 'bg-emerald-500'],
-      ['Closed', (int)$counts['closed_c'], 'bg-slate-500'],
+      ['Closed', (int)$counts['closed_c'], 'bg-zinc-400'],
     ];
     foreach ($bars as [$l, $v, $c]): $pct = round($v / $total * 100); ?>
-      <div class="mt-4">
-        <div class="flex justify-between text-xs text-slate-500"><span><?= $l ?></span><span><?= $v ?> · <?= $pct ?>%</span></div>
-        <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-50">
+      <div class="mt-3.5">
+        <div class="flex justify-between text-[11px] text-zinc-500">
+          <span class="font-medium text-zinc-600"><?= $l ?></span>
+          <span class="tabular-nums"><?= $v ?> &middot; <?= $pct ?>%</span>
+        </div>
+        <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-100">
           <div class="h-full rounded-full <?= $c ?>" style="width: <?= $pct ?>%"></div>
         </div>
       </div>
     <?php endforeach; ?>
-    <div class="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4">
-      <p class="text-xs text-slate-500">High / urgent still open</p>
-      <p class="mt-1 text-2xl font-semibold text-rose-700"><?= (int)$counts['hot_c'] ?></p>
+    <div class="mt-5 flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+      <p class="text-[11px] font-medium uppercase tracking-wider text-zinc-400">High / urgent open</p>
+      <p class="text-lg font-semibold leading-none text-rose-600 tabular-nums"><?= (int)$counts['hot_c'] ?></p>
     </div>
   </div>
 
-  <div class="rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
-    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-      <h2 class="text-sm font-semibold text-slate-900">Recent activity</h2>
-      <a href="<?= url(is_admin() ? 'reports.php' : 'tickets.php') ?>" class="text-sm text-teal-700 hover:text-teal-800"><?= is_admin() ? 'Reports' : 'View all' ?> →</a>
+  <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm lg:col-span-2">
+    <div class="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5">
+      <h2 class="text-[13px] font-semibold text-zinc-900">Recent activity</h2>
+      <a href="<?= url(is_admin() ? 'reports.php' : 'tickets.php') ?>" class="text-[13px] font-medium text-zinc-500 hover:text-zinc-900"><?= is_admin() ? 'Reports' : 'View all' ?> &rarr;</a>
     </div>
     <?php if (!$recent): ?>
       <div class="p-10 text-center">
-        <p class="text-slate-500"><?= is_it() ? 'Nothing assigned to you yet.' : 'No tickets yet.' ?></p>
+        <p class="text-[13px] text-zinc-500"><?= is_it() ? 'Nothing assigned to you yet.' : 'No tickets yet.' ?></p>
         <?php if (can_raise_tickets()): ?>
-          <a href="<?= url('ticket-new.php') ?>" class="mt-3 inline-block rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">Create the first one</a>
+          <a href="<?= url('ticket-new.php') ?>" class="mt-3 inline-block rounded-md bg-brand-500 px-3 py-1.5 text-[13px] font-medium text-white shadow-sm hover:bg-brand-600">Create the first one</a>
         <?php endif; ?>
       </div>
     <?php else: ?>
-      <ul class="divide-y divide-slate-200">
+      <ul class="divide-y divide-zinc-100">
         <?php foreach ($recent as $t): ?>
           <li>
-            <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="flex items-center gap-4 px-5 py-3.5 transition hover:bg-slate-50">
-              <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-900"><?= e(initials($t['requester_name'])) ?></div>
+            <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="flex items-center gap-3 px-4 py-2.5 transition hover:bg-zinc-50">
+              <div class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-600"><?= e(initials($t['requester_name'])) ?></div>
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium text-slate-900"><?= e($t['subject']) ?></p>
-                <p class="truncate text-xs text-slate-500"><?= e($t['code']) ?> · <?= e($t['requester_name']) ?> · <?= e(time_ago($t['updated_at'])) ?></p>
+                <p class="truncate text-[13px] font-medium text-zinc-900"><?= e($t['subject']) ?></p>
+                <p class="truncate text-[11px] text-zinc-500"><span class="font-medium text-zinc-400"><?= e($t['code']) ?></span> &middot; <?= e($t['requester_name']) ?> &middot; <?= e(time_ago($t['updated_at'])) ?></p>
               </div>
               <div class="hidden shrink-0 sm:block"><?= priority_badge($t['priority']) ?></div>
               <div class="shrink-0"><?= status_badge($t['status']) ?></div>
@@ -340,17 +345,17 @@ require __DIR__ . '/layout/header.php';
   </div>
 </div>
 <?php if ($taskStats): ?>
-  <div class="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+  <div class="mt-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h2 class="text-sm font-semibold text-slate-900">Your daily task sheet</h2>
-        <p class="mt-1 text-sm text-slate-500">
-          <?= (int)$taskStats['today_c'] ?> logged today ·
-          <?= (int)$taskStats['week_c'] ?> this week ·
+        <h2 class="text-[13px] font-semibold text-zinc-900">Your daily task sheet</h2>
+        <p class="mt-1 text-[12px] text-zinc-500 tabular-nums">
+          <?= (int)$taskStats['today_c'] ?> logged today &middot;
+          <?= (int)$taskStats['week_c'] ?> this week &middot;
           <?= (float)$taskStats['week_h'] ?> hrs
         </p>
       </div>
-      <a href="<?= url('tasks.php') ?>" class="rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+      <a href="<?= url('tasks.php') ?>" class="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-[13px] font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50">
         <?= (int)$taskStats['today_c'] ? 'Open task sheet' : "Fill today's tasks" ?>
       </a>
     </div>

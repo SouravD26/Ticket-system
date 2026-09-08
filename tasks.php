@@ -165,7 +165,7 @@ function status_dot(string $s): string
       </div>
     </form>
     <button type="button" id="jumpAdd"
-            class="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700">
+            class="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600">
       + Add Task
     </button>
   </div>
@@ -178,38 +178,38 @@ function status_dot(string $s): string
 
   <div class="mt-1.5 flex flex-wrap items-center gap-2">
     <input id="qaTitle" type="text" placeholder="e.g. Fixed login issue" autocomplete="off"
-           class="min-w-[16rem] flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/25">
+           class="min-w-[16rem] flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
 
     <!-- 9. HOURS -->
-    <select id="qaHours" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-teal-500">
+    <select id="qaHours" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400">
       <?php foreach (TASK_HOUR_STEPS as $h): ?>
         <option value="<?= $h ?>" <?= $h === '0.5' ? 'selected' : '' ?>><?= $h ?> hr</option>
       <?php endforeach; ?>
       <option value="custom">Custom…</option>
     </select>
     <input id="qaHoursCustom" type="number" step="0.25" min="0" max="24" placeholder="hrs"
-           class="hidden w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+           class="hidden w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
 
     <!-- 10. STATUS -->
-    <select id="qaStatus" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-teal-500">
+    <select id="qaStatus" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400">
       <?php foreach (TASK_STATUSES as $k => $l): ?>
         <option value="<?= $k ?>"><?= e($l) ?></option>
       <?php endforeach; ?>
     </select>
 
     <button type="button" id="qaAdd"
-            class="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">
+            class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">
       Add Task
     </button>
   </div>
 
   <!-- 7. details stay optional, behind a toggle -->
-  <button type="button" id="qaMore" class="mt-3 text-xs font-medium text-teal-700 hover:text-teal-800">+ Add details</button>
+  <button type="button" id="qaMore" class="mt-3 text-xs font-medium text-brand-600 hover:text-brand-700">+ Add details</button>
   <div id="qaMoreBox" class="mt-2 hidden">
     <textarea id="qaDetails" rows="3" placeholder="Anything worth recording (optional)"
-              class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/25"></textarea>
+              class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
     <input id="qaCategory" type="text" placeholder="Category (optional)"
-           class="mt-2 w-56 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+           class="mt-2 w-56 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
   </div>
 </div>
 
@@ -235,7 +235,7 @@ function status_dot(string $s): string
   <?php endforeach; ?>
   <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
     <div class="flex items-center gap-2">
-      <svg class="h-4 w-4 text-teal-600" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+      <svg class="h-4 w-4 text-brand-500" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
       <p class="text-xs font-medium text-slate-500">Total Logged</p>
@@ -254,7 +254,7 @@ function status_dot(string $s): string
   <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-3.5">
     <h3 class="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
       Daily Tasks
-      <span class="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700 ring-1 ring-inset ring-teal-600/20">
+      <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-600 ring-1 ring-inset ring-brand-500/20">
         <?= e($dayLabel) ?>
       </span>
       <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600" data-count="all">0</span>
@@ -282,7 +282,7 @@ function status_dot(string $s): string
 
       <label class="flex items-center gap-2 text-xs text-slate-500">
         Sort by:
-        <select id="sortBy" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-teal-500">
+        <select id="sortBy" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-brand-400">
           <option value="latest">Latest</option>
           <option value="oldest">Oldest</option>
           <option value="hours">Hours</option>
@@ -309,7 +309,7 @@ function status_dot(string $s): string
               <?php endif; ?>
               <?php if ($t['ticket_code']): ?>
                 <a href="<?= url('ticket-view.php?id=' . (int) $t['ticket_id']) ?>"
-                   class="rounded bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-600/20">From ticket</a>
+                   class="rounded bg-brand-50 px-1.5 py-0.5 text-[11px] font-semibold text-brand-600 ring-1 ring-inset ring-brand-500/20">From ticket</a>
               <?php endif; ?>
               <?php if ($t['description']): ?><span class="truncate"><?= e($t['description']) ?></span><?php endif; ?>
             </p>
@@ -319,7 +319,7 @@ function status_dot(string $s): string
 
           <span class="shrink-0">
             <select data-status-select
-                    class="rounded-lg border px-2 py-1.5 text-xs font-medium outline-none focus:border-teal-500 <?= $st['chip'] ?>">
+                    class="rounded-lg border px-2 py-1.5 text-xs font-medium outline-none focus:border-brand-400 <?= $st['chip'] ?>">
               <?php foreach (TASK_STATUSES as $k => $l): ?>
                 <option value="<?= $k ?>" <?= $t['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
               <?php endforeach; ?>
@@ -345,27 +345,27 @@ function status_dot(string $s): string
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="sm:col-span-2">
               <label class="mb-1 block text-xs text-slate-500">Task</label>
-              <input data-f="title" value="<?= e($t['title']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+              <input data-f="title" value="<?= e($t['title']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
             </div>
             <div class="sm:col-span-2">
               <label class="mb-1 block text-xs text-slate-500">Details</label>
-              <textarea data-f="description" rows="2" class="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500"><?= e($t['description'] ?? '') ?></textarea>
+              <textarea data-f="description" rows="2" class="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400"><?= e($t['description'] ?? '') ?></textarea>
             </div>
             <div>
               <label class="mb-1 block text-xs text-slate-500">Category</label>
-              <input data-f="category" value="<?= e($t['category'] ?? '') ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+              <input data-f="category" value="<?= e($t['category'] ?? '') ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
             </div>
             <div>
               <label class="mb-1 block text-xs text-slate-500">Date</label>
-              <input data-f="task_date" type="date" max="<?= date('Y-m-d') ?>" value="<?= e($t['task_date']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+              <input data-f="task_date" type="date" max="<?= date('Y-m-d') ?>" value="<?= e($t['task_date']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
             </div>
             <div>
               <label class="mb-1 block text-xs text-slate-500">Hours</label>
-              <input data-f="hours" type="number" step="0.25" min="0" max="24" value="<?= (float) $t['hours'] ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+              <input data-f="hours" type="number" step="0.25" min="0" max="24" value="<?= (float) $t['hours'] ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
             </div>
             <div>
               <label class="mb-1 block text-xs text-slate-500">Status</label>
-              <select data-f="status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+              <select data-f="status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
                 <?php foreach (TASK_STATUSES as $k => $l): ?>
                   <option value="<?= $k ?>" <?= $t['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
                 <?php endforeach; ?>
@@ -373,7 +373,7 @@ function status_dot(string $s): string
             </div>
           </div>
           <div class="mt-3 flex gap-2">
-            <button type="button" data-act="save"   class="rounded-lg bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700">Save</button>
+            <button type="button" data-act="save"   class="rounded-lg bg-brand-500 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600">Save</button>
             <button type="button" data-act="cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-xs text-slate-600 hover:bg-slate-100">Cancel</button>
           </div>
         </div>
@@ -385,7 +385,7 @@ function status_dot(string $s): string
   <div id="emptyState" class="hidden px-5 py-12 text-center">
     <p class="text-sm font-medium text-slate-700">No tasks logged yet</p>
     <p class="mt-1 text-sm text-slate-500">Add your first task above. It only takes a few seconds.</p>
-    <button type="button" id="emptyAdd" class="mt-4 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">+ Add Task</button>
+    <button type="button" id="emptyAdd" class="mt-4 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">+ Add Task</button>
   </div>
 
   <!-- 11 + 12. TOTAL AND SUBMIT -->
@@ -395,7 +395,7 @@ function status_dot(string $s): string
       <p id="draftNote" class="text-xs text-slate-500">Your entries are saved and can be edited before submission.</p>
     </div>
     <button type="submit" id="submitAll" disabled
-            class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
+            class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
       Submit All Tasks
     </button>
@@ -431,11 +431,11 @@ function status_dot(string $s): string
       <input type="hidden" name="day" value="<?= e($day) ?>">
       <div>
         <label class="mb-1 block text-xs text-slate-500">From</label>
-        <input name="from" type="date" value="<?= e($from) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+        <input name="from" type="date" value="<?= e($from) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
       </div>
       <div>
         <label class="mb-1 block text-xs text-slate-500">To</label>
-        <input name="to" type="date" value="<?= e($to) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500">
+        <input name="to" type="date" value="<?= e($to) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
       </div>
       <button class="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-900 hover:bg-slate-200">Filter</button>
       <?php $dl = http_build_query(['from' => $from, 'to' => $to]); ?>
@@ -447,7 +447,7 @@ function status_dot(string $s): string
       <?php foreach ($histByDay as $d => $rows): ?>
         <div>
           <div class="flex items-baseline justify-between">
-            <a href="?day=<?= e($d) ?>" class="text-xs font-semibold text-slate-700 hover:text-teal-700"><?= date('D, M j, Y', strtotime($d)) ?></a>
+            <a href="?day=<?= e($d) ?>" class="text-xs font-semibold text-slate-700 hover:text-brand-600"><?= date('D, M j, Y', strtotime($d)) ?></a>
             <span class="text-[11px] text-slate-400"><?= array_sum(array_map('floatval', array_column($rows, 'hours'))) ?> hrs</span>
           </div>
           <ul class="mt-1 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
@@ -497,7 +497,7 @@ function status_dot(string $s): string
       return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(LABELS[k]) + '</option>';
     }).join('');
   }
-  var INP = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500';
+  var INP = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400';
 
   /* ---------- a draft row, drawn to match the saved ones ---------- */
   function draftRow(d, i) {
@@ -509,7 +509,7 @@ function status_dot(string $s): string
     li.dataset.status = d.status;
     li.dataset.hours = d.hours;
     li.dataset.seq = 1000000 + i;
-    li.className = 'bg-teal-50/40';
+    li.className = 'bg-brand-50/40';
     li.innerHTML =
       '<div class="flex flex-wrap items-center gap-3 px-5 py-3">' +
         '<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full ' + st.chip.split(' ')[0] + '">' +
@@ -552,7 +552,7 @@ function status_dot(string $s): string
             '<select data-f="status" class="' + INP + '">' + opts(d.status) + '</select></div>' +
         '</div>' +
         '<div class="mt-3 flex gap-2">' +
-          '<button type="button" data-act="save" class="rounded-lg bg-teal-600 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-700">Save</button>' +
+          '<button type="button" data-act="save" class="rounded-lg bg-brand-500 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600">Save</button>' +
           '<button type="button" data-act="cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-xs text-slate-600 hover:bg-slate-100">Cancel</button>' +
         '</div>' +
       '</div>';

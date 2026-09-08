@@ -164,7 +164,7 @@ $activity = q('SELECT a.*, u.name FROM ticket_activity a LEFT JOIN users u ON u.
 
 // Only the Super Admin hands tickets to IT staff, and re-hands them when someone is away.
 $agents      = can_assign() ? q('SELECT id, name FROM users WHERE role = "it" AND is_active = 1 ORDER BY name')->fetchAll() : [];
-$departments = can_assign() ? q('SELECT id, name FROM departments ORDER BY name')->fetchAll() : [];
+$departments = can_assign() ? all_departments() : [];
 
 // The work sheet for this ticket — visible to staff, kept apart from the conversation.
 $workLogs = is_staff()
@@ -203,7 +203,7 @@ function attachment_list(array $items): string
     <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p class="text-xs font-medium text-teal-700"><?= e($ticket['code']) ?></p>
+          <p class="text-xs font-medium text-brand-600"><?= e($ticket['code']) ?></p>
           <h2 class="mt-1 text-xl font-semibold text-slate-900"><?= e($ticket['subject']) ?></h2>
           <p class="mt-1 text-xs text-slate-500">
             Opened by <?= e($ticket['requester_name']) ?> · <?= date('M j, Y g:i a', strtotime($ticket['created_at'])) ?>
@@ -219,11 +219,11 @@ function attachment_list(array $items): string
     <?php foreach ($replies as $r): ?>
       <div class="rounded-2xl border <?= $r['is_internal'] ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white' ?> p-5">
         <div class="flex items-center gap-3">
-          <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full <?= $r['role'] === 'user' ? 'bg-slate-100' : 'bg-teal-100 text-teal-700' ?> text-xs font-semibold"><?= e(initials($r['name'])) ?></div>
+          <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full <?= $r['role'] === 'user' ? 'bg-slate-100' : 'bg-brand-100 text-brand-600' ?> text-xs font-semibold"><?= e(initials($r['name'])) ?></div>
           <div class="min-w-0">
             <p class="text-sm font-medium text-slate-900">
               <?= e($r['name']) ?>
-              <?php if ($r['role'] !== 'user'): ?><span class="ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-teal-700 ring-1 ring-inset ring-teal-600/25">Staff</span><?php endif; ?>
+              <?php if ($r['role'] !== 'user'): ?><span class="ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-brand-600 ring-1 ring-inset ring-brand-500/25">Staff</span><?php endif; ?>
               <?php if ($r['is_internal']): ?><span class="ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-600/20">Internal</span><?php endif; ?>
             </p>
             <p class="text-xs text-slate-500"><?= date('M j, Y g:i a', strtotime($r['created_at'])) ?></p>
@@ -249,7 +249,7 @@ function attachment_list(array $items): string
           <?= csrf_field() ?>
           <label class="mb-1 block text-xs text-slate-500">If it is not fixed, tell them what is still wrong (optional)</label>
           <input name="reason" placeholder="e.g. the projector still shows no signal"
-                 class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
+                 class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             <button name="action" value="acknowledge"
                     class="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
@@ -273,8 +273,8 @@ function attachment_list(array $items): string
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="not_resolved">
           <input name="reason" placeholder="What went wrong again? (optional)"
-                 class="min-w-[14rem] flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-teal-500">
-          <button class="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">Raise again</button>
+                 class="min-w-[14rem] flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
+          <button class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Raise again</button>
         </form>
       </div>
     <?php endif; ?>
@@ -289,11 +289,11 @@ function attachment_list(array $items): string
         <input type="hidden" name="action" value="reply">
         <h3 class="text-sm font-semibold text-slate-900">Add a reply</h3>
         <textarea name="message" rows="5" placeholder="Type your message…"
-                  class="mt-3 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/25"></textarea>
+                  class="mt-3 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
         <input type="file" name="files[]" multiple
                class="mt-3 w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-500 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-white">
         <div class="mt-4 flex flex-wrap items-center gap-4">
-          <button class="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">Send reply</button>
+          <button class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Send reply</button>
           <?php if (can_work_tickets()): ?>
             <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-amber-700">
               <input type="checkbox" name="is_internal" value="1" class="h-4 w-4 rounded border-slate-300 bg-slate-50 text-amber-500">
@@ -341,7 +341,7 @@ function attachment_list(array $items): string
         <div class="mt-4 space-y-3">
           <div>
             <label class="mb-1 block text-xs text-slate-500">Status</label>
-            <select name="status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+            <select name="status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
               <?php foreach ($statusChoices as $k => $l): ?>
                 <option value="<?= $k ?>" <?= $ticket['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
               <?php endforeach; ?>
@@ -356,7 +356,7 @@ function attachment_list(array $items): string
           <div>
             <label class="mb-1 block text-xs text-slate-500">Priority</label>
             <?php if (can_set_priority()): ?>
-              <select name="priority" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+              <select name="priority" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
                 <?php foreach (PRIORITIES as $k => $l): ?>
                   <option value="<?= $k ?>" <?= $ticket['priority'] === $k ? 'selected' : '' ?>><?= $l ?></option>
                 <?php endforeach; ?>
@@ -373,7 +373,7 @@ function attachment_list(array $items): string
           <div>
             <label class="mb-1 block text-xs text-slate-500">Assignee<?= can_assign() ? ' (IT staff)' : '' ?></label>
             <?php if (can_assign()): ?>
-              <select name="assigned_to" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+              <select name="assigned_to" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
                 <option value="">Unassigned</option>
                 <?php foreach ($agents as $a): ?>
                   <option value="<?= $a['id'] ?>" <?= (int)$ticket['assigned_to'] === (int)$a['id'] ? 'selected' : '' ?>><?= e($a['name']) ?></option>
@@ -393,7 +393,7 @@ function attachment_list(array $items): string
           <?php if (can_assign()): ?>
             <div>
               <label class="mb-1 block text-xs text-slate-500">Department</label>
-              <select name="department_id" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+              <select name="department_id" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
                 <option value="">— None —</option>
                 <?php foreach ($departments as $d): ?>
                   <option value="<?= $d['id'] ?>" <?= (int)$ticket['department_id'] === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name']) ?></option>
@@ -401,7 +401,7 @@ function attachment_list(array $items): string
               </select>
             </div>
           <?php endif; ?>
-          <button class="w-full rounded-xl bg-teal-600 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">Save changes</button>
+          <button class="w-full rounded-xl bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Save changes</button>
         </div>
       </form>
       <?php endif; ?>
@@ -414,22 +414,22 @@ function attachment_list(array $items): string
           <p class="mt-1 text-xs text-slate-500">Kept out of the conversation — this is your own record of what you did.</p>
           <div class="mt-4 space-y-3">
             <input name="summary" required minlength="3" placeholder="What did you do?"
-                   class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+                   class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
             <textarea name="details" rows="3" placeholder="Details (optional)"
-                      class="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500"></textarea>
+                      class="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400"></textarea>
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="mb-1 block text-xs text-slate-500">Date</label>
                 <input name="work_date" type="date" value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>"
-                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
               </div>
               <div>
                 <label class="mb-1 block text-xs text-slate-500">Hours</label>
                 <input name="hours" type="number" step="0.25" min="0" max="24" value="1"
-                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-teal-500">
+                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
               </div>
             </div>
-            <button class="w-full rounded-xl border border-teal-600 py-2.5 text-sm font-semibold text-teal-700 transition hover:bg-teal-50">Add work entry</button>
+            <button class="w-full rounded-xl border border-brand-500 py-2.5 text-sm font-semibold text-brand-600 transition hover:bg-brand-50">Add work entry</button>
           </div>
         </form>
       <?php endif; ?>
@@ -470,7 +470,7 @@ function attachment_list(array $items): string
         <ol class="mt-4 space-y-3">
           <?php foreach ($activity as $a): ?>
             <li class="flex gap-3 text-sm">
-              <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500"></span>
+              <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400"></span>
               <div>
                 <p class="text-slate-600"><?= e($a['detail'] ?: $a['action']) ?></p>
                 <p class="text-xs text-slate-400"><?= e($a['name'] ?? 'System') ?> · <?= e(time_ago($a['created_at'])) ?></p>
