@@ -142,7 +142,7 @@ require __DIR__ . '/layout/header.php';
 /** The coloured dot used in rows, dropdowns and the history strip. */
 function status_dot(string $s): string
 {
-    $c = TASK_STATUS_STYLES[$s]['dot'] ?? 'bg-slate-400';
+    $c = TASK_STATUS_STYLES[$s]['dot'] ?? 'bg-zinc-400';
     return '<span class="inline-block h-2 w-2 shrink-0 rounded-full ' . $c . '"></span>';
 }
 ?>
@@ -150,66 +150,66 @@ function status_dot(string $s): string
 <!-- 1. PAGE HEADER -->
 <div class="flex flex-wrap items-end justify-between gap-4">
   <div>
-    <h2 class="text-xl font-semibold text-slate-900">Daily Tasks</h2>
-    <p class="mt-0.5 text-sm text-slate-500">Quickly log what you worked on today.</p>
+    <h2 class="text-xl font-semibold text-zinc-900">Daily Tasks</h2>
+    <p class="mt-0.5 text-[13px] text-zinc-500">Quickly log what you worked on today.</p>
   </div>
   <div class="flex items-center gap-2">
     <form method="get">
       <label class="sr-only" for="dayPick">Date</label>
-      <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-        <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+      <div class="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 shadow-sm">
+        <svg class="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M4 11h16M5 21h14a1 1 0 001-1V7a1 1 0 00-1-1H5a1 1 0 00-1 1v13a1 1 0 001 1z"/>
         </svg>
         <input id="dayPick" type="date" name="day" value="<?= e($day) ?>" max="<?= date('Y-m-d') ?>"
-               onchange="this.form.submit()" class="bg-transparent text-sm text-slate-800 outline-none">
+               onchange="this.form.submit()" class="bg-transparent text-[13px] text-zinc-800 outline-none">
       </div>
     </form>
     <button type="button" id="jumpAdd"
-            class="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600">
+            class="rounded-md bg-brand-500 px-3 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-600">
       + Add Task
     </button>
   </div>
 </div>
 
 <!-- 2. QUICK ADD -->
-<div class="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-  <h3 class="text-sm font-semibold text-slate-900">Quick Add Task</h3>
-  <label for="qaTitle" class="mt-3 block text-xs text-slate-500">What did you work on?</label>
+<div class="mt-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+  <h3 class="text-[13px] font-semibold text-zinc-900">Quick Add Task</h3>
+  <label for="qaTitle" class="mt-3 block text-[11px] text-zinc-500">What did you work on?</label>
 
   <div class="mt-1.5 flex flex-wrap items-center gap-2">
     <input id="qaTitle" type="text" placeholder="e.g. Fixed login issue" autocomplete="off"
-           class="min-w-[16rem] flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
+           class="min-w-[16rem] flex-1 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
 
     <!-- 9. HOURS -->
-    <select id="qaHours" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400">
+    <select id="qaHours" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none focus:border-brand-400">
       <?php foreach (TASK_HOUR_STEPS as $h): ?>
         <option value="<?= $h ?>" <?= $h === '0.5' ? 'selected' : '' ?>><?= $h ?> hr</option>
       <?php endforeach; ?>
       <option value="custom">Custom…</option>
     </select>
     <input id="qaHoursCustom" type="number" step="0.25" min="0" max="24" placeholder="hrs"
-           class="hidden w-24 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+           class="hidden w-24 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
 
     <!-- 10. STATUS -->
-    <select id="qaStatus" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-brand-400">
+    <select id="qaStatus" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none focus:border-brand-400">
       <?php foreach (TASK_STATUSES as $k => $l): ?>
         <option value="<?= $k ?>"><?= e($l) ?></option>
       <?php endforeach; ?>
     </select>
 
     <button type="button" id="qaAdd"
-            class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">
+            class="rounded-md bg-brand-500 px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-brand-600">
       Add Task
     </button>
   </div>
 
   <!-- 7. details stay optional, behind a toggle -->
-  <button type="button" id="qaMore" class="mt-3 text-xs font-medium text-brand-600 hover:text-brand-700">+ Add details</button>
+  <button type="button" id="qaMore" class="mt-3 text-[11px] font-medium text-brand-600 hover:text-brand-700">+ Add details</button>
   <div id="qaMoreBox" class="mt-2 hidden">
     <textarea id="qaDetails" rows="3" placeholder="Anything worth recording (optional)"
-              class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
+              class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
     <input id="qaCategory" type="text" placeholder="Category (optional)"
-           class="mt-2 w-56 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+           class="mt-2 w-56 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
   </div>
 </div>
 
@@ -222,42 +222,42 @@ function status_dot(string $s): string
     ['pending',     'Pending',     'text-amber-600',   'M12 8v5M12 16h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
   ];
   foreach ($cards as [$key, $label, $tint, $path]): ?>
-    <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <div class="rounded-md border border-zinc-200 bg-white px-3 py-2 shadow-sm">
       <div class="flex items-center gap-2">
         <svg class="h-4 w-4 <?= $tint ?>" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="<?= $path ?>"/>
         </svg>
-        <p class="text-xs font-medium text-slate-500"><?= e($label) ?></p>
+        <p class="text-[11px] font-medium text-zinc-500"><?= e($label) ?></p>
       </div>
-      <p class="mt-1 text-2xl font-semibold text-slate-900" data-count="<?= $key ?>">0</p>
-      <p class="text-[11px] text-slate-400"><?= e($label) ?> Tasks</p>
+      <p class="mt-1 text-2xl font-semibold text-zinc-900" data-count="<?= $key ?>">0</p>
+      <p class="text-[11px] text-zinc-400"><?= e($label) ?> Tasks</p>
     </div>
   <?php endforeach; ?>
-  <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+  <div class="rounded-md border border-zinc-200 bg-white px-3 py-2 shadow-sm">
     <div class="flex items-center gap-2">
       <svg class="h-4 w-4 text-brand-500" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
-      <p class="text-xs font-medium text-slate-500">Total Logged</p>
+      <p class="text-[11px] font-medium text-zinc-500">Total Logged</p>
     </div>
-    <p class="mt-1 text-2xl font-semibold text-slate-900"><span data-count="hours">0</span> hrs</p>
-    <p class="text-[11px] text-slate-400">Total Logged Hours</p>
+    <p class="mt-1 text-2xl font-semibold text-zinc-900"><span data-count="hours">0</span> hrs</p>
+    <p class="text-[11px] text-zinc-400">Total Logged Hours</p>
   </div>
 </div>
 
 <!-- 5. TODAY'S TASKS -->
-<form method="post" id="submitForm" class="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
+<form method="post" id="submitForm" class="mt-4 rounded-lg border border-zinc-200 bg-white shadow-sm">
   <?= csrf_field() ?>
   <input type="hidden" name="day" value="<?= e($day) ?>">
   <div id="draftFields"></div>
 
-  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-3.5">
-    <h3 class="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-3 py-2">
+    <h3 class="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-zinc-900">
       Daily Tasks
-      <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-600 ring-1 ring-inset ring-brand-500/20">
+      <span class="rounded-full bg-brand-50 px-2.5 py-0.5 text-[11px] font-medium text-brand-600 ring-1 ring-inset ring-brand-500/20">
         <?= e($dayLabel) ?>
       </span>
-      <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600" data-count="all">0</span>
+      <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600" data-count="all">0</span>
     </h3>
 
     <div class="flex flex-wrap items-center gap-2">
@@ -265,7 +265,7 @@ function status_dot(string $s): string
       <?php $dayDl = http_build_query(['from' => $day, 'to' => $day]); ?>
       <a href="<?= url('download-tasks.php?format=csv&' . $dayDl) ?>"
          title="Download <?= e($dayLabel) ?> as a CSV spreadsheet"
-         class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100">
+         class="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] text-zinc-600 transition hover:bg-zinc-100">
         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
         </svg>
@@ -273,16 +273,16 @@ function status_dot(string $s): string
       </a>
       <a href="<?= url('download-tasks.php?format=pdf&' . $dayDl) ?>"
          title="Download <?= e($dayLabel) ?> as a PDF"
-         class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100">
+         class="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] text-zinc-600 transition hover:bg-zinc-100">
         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
         </svg>
         PDF
       </a>
 
-      <label class="flex items-center gap-2 text-xs text-slate-500">
+      <label class="flex items-center gap-2 text-[11px] text-zinc-500">
         Sort by:
-        <select id="sortBy" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-brand-400">
+        <select id="sortBy" class="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] text-zinc-700 outline-none focus:border-brand-400">
           <option value="latest">Latest</option>
           <option value="oldest">Oldest</option>
           <option value="hours">Hours</option>
@@ -292,20 +292,20 @@ function status_dot(string $s): string
     </div>
   </div>
 
-  <ul id="taskList" class="divide-y divide-slate-200">
+  <ul id="taskList" class="divide-y divide-zinc-100">
     <?php foreach ($todays as $t): $st = TASK_STATUS_STYLES[$t['status']] ?? TASK_STATUS_STYLES['pending']; ?>
       <li data-row data-id="<?= $t['id'] ?>" data-status="<?= e($t['status']) ?>"
           data-hours="<?= (float) $t['hours'] ?>" data-seq="<?= $t['id'] ?>">
 
-        <div class="flex flex-wrap items-center gap-3 px-5 py-3">
+        <div class="flex flex-wrap items-center gap-3 px-3 py-2">
           <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full <?= explode(' ', $st['chip'])[0] ?>">
             <?= status_dot($t['status']) ?>
           </span>
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-slate-900"><?= e($t['title']) ?></p>
-            <p class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <p class="truncate text-[13px] font-medium text-zinc-900"><?= e($t['title']) ?></p>
+            <p class="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
               <?php if ($t['category']): ?>
-                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600"><?= e($t['category']) ?></span>
+                <span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600"><?= e($t['category']) ?></span>
               <?php endif; ?>
               <?php if ($t['ticket_code']): ?>
                 <a href="<?= url('ticket-view.php?id=' . (int) $t['ticket_id']) ?>"
@@ -315,11 +315,11 @@ function status_dot(string $s): string
             </p>
           </div>
 
-          <span class="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"><?= (float) $t['hours'] ?> hr</span>
+          <span class="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700"><?= (float) $t['hours'] ?> hr</span>
 
           <span class="shrink-0">
             <select data-status-select
-                    class="rounded-lg border px-2 py-1.5 text-xs font-medium outline-none focus:border-brand-400 <?= $st['chip'] ?>">
+                    class="rounded-md border px-2 py-1.5 text-[11px] font-medium outline-none focus:border-brand-400 <?= $st['chip'] ?>">
               <?php foreach (TASK_STATUSES as $k => $l): ?>
                 <option value="<?= $k ?>" <?= $t['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
               <?php endforeach; ?>
@@ -328,44 +328,44 @@ function status_dot(string $s): string
 
           <div class="relative shrink-0">
             <button type="button" data-menu-btn title="More"
-                    class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                    class="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700">
               <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
             </button>
-            <div data-menu class="absolute right-0 z-30 mt-1 hidden w-40 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-              <button type="button" data-act="edit"    class="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Edit</button>
-              <button type="button" data-act="details" class="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Add Details</button>
-              <button type="button" data-act="dupe"    class="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Duplicate</button>
-              <button type="button" data-act="del"     class="block w-full px-3 py-2 text-left text-xs text-rose-700 hover:bg-rose-50">Delete</button>
+            <div data-menu class="absolute right-0 z-30 mt-1 hidden w-40 rounded-md border border-zinc-200 bg-white py-1 shadow-lg">
+              <button type="button" data-act="edit"    class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Edit</button>
+              <button type="button" data-act="details" class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Add Details</button>
+              <button type="button" data-act="dupe"    class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Duplicate</button>
+              <button type="button" data-act="del"     class="block w-full px-3 py-2 text-left text-[11px] text-rose-700 hover:bg-rose-50">Delete</button>
             </div>
           </div>
         </div>
 
         <!-- 6. INLINE EDITING -->
-        <div data-edit class="hidden border-t border-slate-200 bg-slate-50/70 px-5 py-4">
+        <div data-edit class="hidden border-t border-zinc-200 bg-zinc-50/70 px-3 py-2">
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="sm:col-span-2">
-              <label class="mb-1 block text-xs text-slate-500">Task</label>
-              <input data-f="title" value="<?= e($t['title']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+              <label class="mb-1 block text-[11px] text-zinc-500">Task</label>
+              <input data-f="title" value="<?= e($t['title']) ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
             </div>
             <div class="sm:col-span-2">
-              <label class="mb-1 block text-xs text-slate-500">Details</label>
-              <textarea data-f="description" rows="2" class="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400"><?= e($t['description'] ?? '') ?></textarea>
+              <label class="mb-1 block text-[11px] text-zinc-500">Details</label>
+              <textarea data-f="description" rows="2" class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400"><?= e($t['description'] ?? '') ?></textarea>
             </div>
             <div>
-              <label class="mb-1 block text-xs text-slate-500">Category</label>
-              <input data-f="category" value="<?= e($t['category'] ?? '') ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+              <label class="mb-1 block text-[11px] text-zinc-500">Category</label>
+              <input data-f="category" value="<?= e($t['category'] ?? '') ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
             </div>
             <div>
-              <label class="mb-1 block text-xs text-slate-500">Date</label>
-              <input data-f="task_date" type="date" max="<?= date('Y-m-d') ?>" value="<?= e($t['task_date']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+              <label class="mb-1 block text-[11px] text-zinc-500">Date</label>
+              <input data-f="task_date" type="date" max="<?= date('Y-m-d') ?>" value="<?= e($t['task_date']) ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
             </div>
             <div>
-              <label class="mb-1 block text-xs text-slate-500">Hours</label>
-              <input data-f="hours" type="number" step="0.25" min="0" max="24" value="<?= (float) $t['hours'] ?>" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+              <label class="mb-1 block text-[11px] text-zinc-500">Hours</label>
+              <input data-f="hours" type="number" step="0.25" min="0" max="24" value="<?= (float) $t['hours'] ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
             </div>
             <div>
-              <label class="mb-1 block text-xs text-slate-500">Status</label>
-              <select data-f="status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+              <label class="mb-1 block text-[11px] text-zinc-500">Status</label>
+              <select data-f="status" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
                 <?php foreach (TASK_STATUSES as $k => $l): ?>
                   <option value="<?= $k ?>" <?= $t['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
                 <?php endforeach; ?>
@@ -373,8 +373,8 @@ function status_dot(string $s): string
             </div>
           </div>
           <div class="mt-3 flex gap-2">
-            <button type="button" data-act="save"   class="rounded-lg bg-brand-500 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600">Save</button>
-            <button type="button" data-act="cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-xs text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button type="button" data-act="save"   class="rounded-md bg-brand-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-brand-600">Save</button>
+            <button type="button" data-act="cancel" class="rounded-md border border-zinc-200 px-4 py-2 text-[11px] text-zinc-600 hover:bg-zinc-100">Cancel</button>
           </div>
         </div>
       </li>
@@ -383,19 +383,19 @@ function status_dot(string $s): string
 
   <!-- 14. EMPTY STATE -->
   <div id="emptyState" class="hidden px-5 py-12 text-center">
-    <p class="text-sm font-medium text-slate-700">No tasks logged yet</p>
-    <p class="mt-1 text-sm text-slate-500">Add your first task above. It only takes a few seconds.</p>
-    <button type="button" id="emptyAdd" class="mt-4 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">+ Add Task</button>
+    <p class="text-[13px] font-medium text-zinc-700">No tasks logged yet</p>
+    <p class="mt-1 text-[13px] text-zinc-500">Add your first task above. It only takes a few seconds.</p>
+    <button type="button" id="emptyAdd" class="mt-4 rounded-md bg-brand-500 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-brand-600">+ Add Task</button>
   </div>
 
   <!-- 11 + 12. TOTAL AND SUBMIT -->
-  <div class="border-t border-slate-200 px-5 py-4">
+  <div class="border-t border-zinc-200 px-3 py-2">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <p class="text-sm text-slate-600">Total Logged: <span class="font-semibold text-slate-900" data-count="hours">0</span> hrs</p>
-      <p id="draftNote" class="text-xs text-slate-500">Your entries are saved and can be edited before submission.</p>
+      <p class="text-[13px] text-zinc-600">Total Logged: <span class="font-semibold text-zinc-900" data-count="hours">0</span> hrs</p>
+      <p id="draftNote" class="text-[11px] text-zinc-500">Your entries are saved and can be edited before submission.</p>
     </div>
     <button type="submit" id="submitAll" disabled
-            class="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
+            class="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-brand-500 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400">
       <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
       Submit All Tasks
     </button>
@@ -417,53 +417,53 @@ function status_dot(string $s): string
 </form>
 
 <!-- 13. HISTORY & EXPORT — deliberately secondary -->
-<details class="mt-4 rounded-2xl border border-slate-200 bg-slate-50/60">
-  <summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-slate-600 hover:text-slate-900">
+<details class="mt-4 rounded-lg border border-zinc-200 bg-zinc-50/60">
+  <summary class="cursor-pointer list-none px-3 py-2 text-[13px] font-medium text-zinc-600 hover:text-zinc-900">
     <span class="inline-flex items-center gap-2">
-      <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      <svg class="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       Earlier entries &amp; export
-      <span class="text-xs text-slate-400"><?= (int) $histCount ?> in range · <?= (float) $histHours ?> hrs</span>
+      <span class="text-[11px] text-zinc-400"><?= (int) $histCount ?> in range · <?= (float) $histHours ?> hrs</span>
     </span>
   </summary>
 
-  <div class="border-t border-slate-200 px-5 py-4">
+  <div class="border-t border-zinc-200 px-3 py-2">
     <form method="get" class="flex flex-wrap items-end gap-3">
       <input type="hidden" name="day" value="<?= e($day) ?>">
       <div>
-        <label class="mb-1 block text-xs text-slate-500">From</label>
-        <input name="from" type="date" value="<?= e($from) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+        <label class="mb-1 block text-[11px] text-zinc-500">From</label>
+        <input name="from" type="date" value="<?= e($from) ?>" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
       </div>
       <div>
-        <label class="mb-1 block text-xs text-slate-500">To</label>
-        <input name="to" type="date" value="<?= e($to) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400">
+        <label class="mb-1 block text-[11px] text-zinc-500">To</label>
+        <input name="to" type="date" value="<?= e($to) ?>" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
       </div>
-      <button class="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-900 hover:bg-slate-200">Filter</button>
+      <button class="rounded-md bg-zinc-100 px-4 py-2 text-[13px] text-zinc-900 hover:bg-zinc-200">Filter</button>
       <?php $dl = http_build_query(['from' => $from, 'to' => $to]); ?>
-      <a href="<?= url('download-tasks.php?format=csv&' . $dl) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">Excel (CSV)</a>
-      <a href="<?= url('download-tasks.php?format=pdf&' . $dl) ?>" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">PDF</a>
+      <a href="<?= url('download-tasks.php?format=csv&' . $dl) ?>" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-600 hover:bg-zinc-100">Excel (CSV)</a>
+      <a href="<?= url('download-tasks.php?format=pdf&' . $dl) ?>" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-600 hover:bg-zinc-100">PDF</a>
     </form>
 
     <div class="mt-4 space-y-3">
       <?php foreach ($histByDay as $d => $rows): ?>
         <div>
           <div class="flex items-baseline justify-between">
-            <a href="?day=<?= e($d) ?>" class="text-xs font-semibold text-slate-700 hover:text-brand-600"><?= date('D, M j, Y', strtotime($d)) ?></a>
-            <span class="text-[11px] text-slate-400"><?= array_sum(array_map('floatval', array_column($rows, 'hours'))) ?> hrs</span>
+            <a href="?day=<?= e($d) ?>" class="text-[11px] font-semibold text-zinc-700 hover:text-brand-600"><?= date('D, M j, Y', strtotime($d)) ?></a>
+            <span class="text-[11px] text-zinc-400"><?= array_sum(array_map('floatval', array_column($rows, 'hours'))) ?> hrs</span>
           </div>
-          <ul class="mt-1 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+          <ul class="mt-1 divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white">
             <?php foreach ($rows as $h): ?>
               <li class="flex items-center gap-3 px-3 py-2">
                 <?= status_dot($h['status']) ?>
-                <span class="min-w-0 flex-1 truncate text-xs text-slate-700"><?= e($h['title']) ?></span>
-                <span class="shrink-0 text-[11px] text-slate-400"><?= e(TASK_STATUSES[$h['status']] ?? $h['status']) ?></span>
-                <span class="shrink-0 text-[11px] text-slate-500"><?= (float) $h['hours'] ?>h</span>
+                <span class="min-w-0 flex-1 truncate text-[11px] text-zinc-700"><?= e($h['title']) ?></span>
+                <span class="shrink-0 text-[11px] text-zinc-400"><?= e(TASK_STATUSES[$h['status']] ?? $h['status']) ?></span>
+                <span class="shrink-0 text-[11px] text-zinc-500"><?= (float) $h['hours'] ?>h</span>
               </li>
             <?php endforeach; ?>
           </ul>
         </div>
       <?php endforeach; ?>
       <?php if (!$histByDay): ?>
-        <p class="py-6 text-center text-sm text-slate-500">No entries in this range.</p>
+        <p class="py-6 text-center text-[13px] text-zinc-500">No entries in this range.</p>
       <?php endif; ?>
     </div>
   </div>
@@ -497,7 +497,7 @@ function status_dot(string $s): string
       return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(LABELS[k]) + '</option>';
     }).join('');
   }
-  var INP = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-400';
+  var INP = 'w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400';
 
   /* ---------- a draft row, drawn to match the saved ones ---------- */
   function draftRow(d, i) {
@@ -511,49 +511,49 @@ function status_dot(string $s): string
     li.dataset.seq = 1000000 + i;
     li.className = 'bg-brand-50/40';
     li.innerHTML =
-      '<div class="flex flex-wrap items-center gap-3 px-5 py-3">' +
+      '<div class="flex flex-wrap items-center gap-3 px-3 py-2">' +
         '<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full ' + st.chip.split(' ')[0] + '">' +
           '<span class="inline-block h-2 w-2 rounded-full ' + st.dot + '"></span></span>' +
         '<div class="min-w-0 flex-1">' +
-          '<p class="truncate text-sm font-medium text-slate-900">' + esc(d.title) +
+          '<p class="truncate text-[13px] font-medium text-zinc-900">' + esc(d.title) +
             ' <span class="rounded bg-amber-100 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-800">Draft</span></p>' +
-          '<p class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">' +
-            (d.category ? '<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">' + esc(d.category) + '</span>' : '') +
+          '<p class="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">' +
+            (d.category ? '<span class="rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-600">' + esc(d.category) + '</span>' : '') +
             (d.description ? '<span class="truncate">' + esc(d.description) + '</span>' : '') +
           '</p>' +
         '</div>' +
-        '<span class="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">' + esc(d.hours) + ' hr</span>' +
-        '<span class="shrink-0"><select data-draft-status class="rounded-lg border px-2 py-1.5 text-xs font-medium outline-none ' + st.chip + '">' +
+        '<span class="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">' + esc(d.hours) + ' hr</span>' +
+        '<span class="shrink-0"><select data-draft-status class="rounded-md border px-2 py-1.5 text-[11px] font-medium outline-none ' + st.chip + '">' +
           opts(d.status) + '</select></span>' +
         '<div class="relative shrink-0">' +
-          '<button type="button" data-menu-btn class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">' +
+          '<button type="button" data-menu-btn class="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">' +
             '<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg></button>' +
-          '<div data-menu class="absolute right-0 z-30 mt-1 hidden w-40 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">' +
-            '<button type="button" data-act="edit" class="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Edit</button>' +
-            '<button type="button" data-act="details" class="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Add Details</button>' +
-            '<button type="button" data-act="dupe" class="block w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">Duplicate</button>' +
-            '<button type="button" data-act="del" class="block w-full px-3 py-2 text-left text-xs text-rose-700 hover:bg-rose-50">Delete</button>' +
+          '<div data-menu class="absolute right-0 z-30 mt-1 hidden w-40 rounded-md border border-zinc-200 bg-white py-1 shadow-lg">' +
+            '<button type="button" data-act="edit" class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Edit</button>' +
+            '<button type="button" data-act="details" class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Add Details</button>' +
+            '<button type="button" data-act="dupe" class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Duplicate</button>' +
+            '<button type="button" data-act="del" class="block w-full px-3 py-2 text-left text-[11px] text-rose-700 hover:bg-rose-50">Delete</button>' +
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div data-edit class="hidden border-t border-slate-200 bg-slate-50/70 px-5 py-4">' +
+      '<div data-edit class="hidden border-t border-zinc-200 bg-zinc-50/70 px-3 py-2">' +
         '<div class="grid gap-3 sm:grid-cols-2">' +
-          '<div class="sm:col-span-2"><label class="mb-1 block text-xs text-slate-500">Task</label>' +
+          '<div class="sm:col-span-2"><label class="mb-1 block text-[11px] text-zinc-500">Task</label>' +
             '<input data-f="title" value="' + esc(d.title) + '" class="' + INP + '"></div>' +
-          '<div class="sm:col-span-2"><label class="mb-1 block text-xs text-slate-500">Details</label>' +
+          '<div class="sm:col-span-2"><label class="mb-1 block text-[11px] text-zinc-500">Details</label>' +
             '<textarea data-f="description" rows="2" class="' + INP + ' resize-y">' + esc(d.description) + '</textarea></div>' +
-          '<div><label class="mb-1 block text-xs text-slate-500">Category</label>' +
+          '<div><label class="mb-1 block text-[11px] text-zinc-500">Category</label>' +
             '<input data-f="category" value="' + esc(d.category) + '" class="' + INP + '"></div>' +
-          '<div><label class="mb-1 block text-xs text-slate-500">Date</label>' +
+          '<div><label class="mb-1 block text-[11px] text-zinc-500">Date</label>' +
             '<input data-f="task_date" type="date" max="' + DAY + '" value="' + esc(d.task_date) + '" class="' + INP + '"></div>' +
-          '<div><label class="mb-1 block text-xs text-slate-500">Hours</label>' +
+          '<div><label class="mb-1 block text-[11px] text-zinc-500">Hours</label>' +
             '<input data-f="hours" type="number" step="0.25" min="0" max="24" value="' + esc(d.hours) + '" class="' + INP + '"></div>' +
-          '<div><label class="mb-1 block text-xs text-slate-500">Status</label>' +
+          '<div><label class="mb-1 block text-[11px] text-zinc-500">Status</label>' +
             '<select data-f="status" class="' + INP + '">' + opts(d.status) + '</select></div>' +
         '</div>' +
         '<div class="mt-3 flex gap-2">' +
-          '<button type="button" data-act="save" class="rounded-lg bg-brand-500 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600">Save</button>' +
-          '<button type="button" data-act="cancel" class="rounded-lg border border-slate-200 px-4 py-2 text-xs text-slate-600 hover:bg-slate-100">Cancel</button>' +
+          '<button type="button" data-act="save" class="rounded-md bg-brand-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-brand-600">Save</button>' +
+          '<button type="button" data-act="cancel" class="rounded-md border border-zinc-200 px-4 py-2 text-[11px] text-zinc-600 hover:bg-zinc-100">Cancel</button>' +
         '</div>' +
       '</div>';
     return li;

@@ -48,59 +48,59 @@ $pageTitle = 'Profile';
 require __DIR__ . '/layout/header.php';
 ?>
 <div class="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
-  <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 md:col-span-2">
+  <div class="rounded-lg border border-zinc-200 bg-white shadow-sm p-6 md:col-span-2">
     <div class="flex items-center gap-4">
-      <div class="grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-brand-400 to-sky-500 text-xl font-bold text-white"><?= e(initials($me['name'])) ?></div>
+      <div class="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-[15px] font-semibold text-brand-600"><?= e(initials($me['name'])) ?></div>
       <div>
-        <h2 class="text-xl font-semibold text-slate-900"><?= e($me['name']) ?></h2>
-        <p class="text-sm text-slate-500">ID: <?= e($me['username']) ?> · <?= e($me['email']) ?> · <?= e(ROLE_LABELS[$me['role']] ?? $me['role']) ?></p>
-        <p class="mt-1 text-xs text-slate-500">Member since <?= date('M Y', strtotime($me['created_at'])) ?> · <?= (int)$stats['total'] ?> tickets opened, <?= (int)$stats['active'] ?> still active</p>
+        <h2 class="text-[15px] font-semibold tracking-tight text-zinc-900"><?= e($me['name']) ?></h2>
+        <p class="text-[13px] text-zinc-500">ID: <?= e($me['username']) ?> · <?= e($me['email']) ?> · <?= e(ROLE_LABELS[$me['role']] ?? $me['role']) ?></p>
+        <p class="mt-1 text-[11px] text-zinc-500">Member since <?= date('M Y', strtotime($me['created_at'])) ?> · <?= (int)$stats['total'] ?> tickets opened, <?= (int)$stats['active'] ?> still active</p>
       </div>
     </div>
   </div>
 
-  <form method="post" class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+  <form method="post" class="rounded-lg border border-zinc-200 bg-white shadow-sm p-6">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="profile">
-    <h3 class="text-sm font-semibold text-slate-900">Account details</h3>
+    <h3 class="text-[13px] font-semibold text-zinc-900">Account details</h3>
     <div class="mt-4 space-y-3">
       <div>
-        <label class="mb-1 block text-xs text-slate-500">Full name</label>
-        <input name="name" required value="<?= e($me['name']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
+        <label class="mb-1 block text-[11px] text-zinc-500">Full name</label>
+        <input name="name" required value="<?= e($me['name']) ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
       </div>
       <div>
-        <label class="mb-1 block text-xs text-slate-500">Email</label>
+        <label class="mb-1 block text-[11px] text-zinc-500">Email</label>
         <?php if (is_super()): ?>
-          <input name="email" type="email" required value="<?= e($me['email']) ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
+          <input name="email" type="email" required value="<?= e($me['email']) ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
         <?php else: ?>
-          <input type="email" value="<?= e($me['email']) ?>" disabled class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-500">
+          <input type="email" value="<?= e($me['email']) ?>" disabled class="w-full cursor-not-allowed rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2 text-[13px] text-zinc-500">
         </div>
         <div>
-          <label class="mb-1 block text-sm text-slate-600">Department</label>
-          <input type="text" value="<?= e($myDept ?? 'Not set') ?>" disabled class="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-500">
-          <p class="mt-1 text-xs text-slate-500">Ask the Super Admin to change your email address.</p>
+          <label class="mb-1 block text-[13px] text-zinc-600">Department</label>
+          <input type="text" value="<?= e($myDept ?? 'Not set') ?>" disabled class="w-full cursor-not-allowed rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2 text-[13px] text-zinc-500">
+          <p class="mt-1 text-[11px] text-zinc-500">Ask the Super Admin to change your email address.</p>
         <?php endif; ?>
       </div>
       <div>
-        <label class="mb-1 block text-xs text-slate-500">Phone</label>
-        <input name="phone" value="<?= e($me['phone'] ?? '') ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
+        <label class="mb-1 block text-[11px] text-zinc-500">Phone</label>
+        <input name="phone" value="<?= e($me['phone'] ?? '') ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
       </div>
-      <button class="w-full rounded-xl bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Save profile</button>
+      <button class="w-full rounded-md bg-brand-500 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-600">Save profile</button>
     </div>
   </form>
 
-  <form method="post" class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+  <form method="post" class="rounded-lg border border-zinc-200 bg-white shadow-sm p-6">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="password">
-    <h3 class="text-sm font-semibold text-slate-900">Change password</h3>
+    <h3 class="text-[13px] font-semibold text-zinc-900">Change password</h3>
     <div class="mt-4 space-y-3">
       <?php foreach ([['current_password','Current password'],['new_password','New password'],['confirm_password','Confirm new password']] as [$n,$l]): ?>
         <div>
-          <label class="mb-1 block text-xs text-slate-500"><?= $l ?></label>
-          <input name="<?= $n ?>" type="password" required class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
+          <label class="mb-1 block text-[11px] text-zinc-500"><?= $l ?></label>
+          <input name="<?= $n ?>" type="password" required class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
         </div>
       <?php endforeach; ?>
-      <button class="w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Update password</button>
+      <button class="w-full rounded-md border border-zinc-200 py-2.5 text-[13px] font-semibold text-zinc-700 hover:bg-zinc-50">Update password</button>
     </div>
   </form>
 </div>

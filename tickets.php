@@ -126,102 +126,102 @@ $qs = function (array $over = []) use ($search, $status, $priority, $dept, $mine
 $pageTitle = 'Tickets';
 require __DIR__ . '/layout/header.php';
 ?>
-<form method="get" class="rounded-2xl border border-slate-200 bg-white shadow-sm p-4">
+<form method="get" class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
   <div class="grid gap-3 md:grid-cols-12">
     <div class="md:col-span-4">
       <input name="q" value="<?= e($search) ?>" placeholder="Search subject, code or body…"
-             class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
+             class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
     </div>
-    <select name="month" title="Month raised" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
+    <select name="month" title="Month raised" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 md:col-span-2">
       <?php foreach ($months as $k => $l): ?>
         <option value="<?= $k ?>" <?= (int) $month === $k ? 'selected' : '' ?>><?= $l ?></option>
       <?php endforeach; ?>
       <option value="all" <?= $month === 'all' ? 'selected' : '' ?>>All months</option>
     </select>
-    <select name="year" title="Year raised" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
+    <select name="year" title="Year raised" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 md:col-span-2">
       <?php foreach ($years as $y): ?>
         <option value="<?= $y ?>" <?= (int) $year === $y ? 'selected' : '' ?>><?= $y ?></option>
       <?php endforeach; ?>
       <option value="all" <?= $year === 'all' ? 'selected' : '' ?>>All years</option>
     </select>
-    <select name="status" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
+    <select name="status" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 md:col-span-2">
       <option value="">All statuses</option>
       <?php foreach (STATUSES as $k => $l): ?>
         <option value="<?= $k ?>" <?= $status === $k ? 'selected' : '' ?>><?= $l ?></option>
       <?php endforeach; ?>
     </select>
-    <select name="priority" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-2">
+    <select name="priority" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 md:col-span-2">
       <option value="">All priorities</option>
       <?php foreach (PRIORITIES as $k => $l): ?>
         <option value="<?= $k ?>" <?= $priority === $k ? 'selected' : '' ?>><?= $l ?></option>
       <?php endforeach; ?>
     </select>
-    <select name="dept" class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400 md:col-span-3">
+    <select name="dept" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 md:col-span-3">
       <option value="">All departments</option>
       <?php foreach ($departments as $d): ?>
         <option value="<?= $d['id'] ?>" <?= $dept === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name']) ?></option>
       <?php endforeach; ?>
     </select>
     <div class="flex gap-2 md:col-span-3">
-      <button class="flex-1 rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600">Filter</button>
-      <a href="<?= url('tickets.php') ?>" class="rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50">Reset</a>
+      <button class="flex-1 rounded-md bg-brand-500 px-3 py-2 text-[13px] font-medium text-white hover:bg-brand-600">Filter</button>
+      <a href="<?= url('tickets.php') ?>" class="rounded-md border border-zinc-200 px-3 py-2 text-[13px] text-zinc-500 hover:bg-zinc-50">Reset</a>
     </div>
   </div>
   <?php if (is_staff()): ?>
-    <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm text-slate-500">
-      <input type="checkbox" name="mine" value="1" <?= $mine ? 'checked' : '' ?> class="h-4 w-4 rounded border-slate-300 bg-slate-50 text-brand-600">
+    <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-[13px] text-zinc-500">
+      <input type="checkbox" name="mine" value="1" <?= $mine ? 'checked' : '' ?> class="h-4 w-4 rounded border-zinc-300 bg-zinc-50 text-brand-600">
       Only tickets assigned to me
     </label>
   <?php endif; ?>
 </form>
 
-<div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-  <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
-    <p class="text-sm text-slate-500">
-      <span class="font-semibold text-slate-900"><?= $total ?></span> ticket<?= $total === 1 ? '' : 's' ?>
-      · <span class="text-slate-600"><?= e($periodLabel) ?></span>
+<div class="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+  <div class="flex items-center justify-between border-b border-zinc-200 px-3 py-2">
+    <p class="text-[13px] text-zinc-500">
+      <span class="font-semibold text-zinc-900"><?= $total ?></span> ticket<?= $total === 1 ? '' : 's' ?>
+      · <span class="text-zinc-600"><?= e($periodLabel) ?></span>
     </p>
-    <a href="<?= url('ticket-new.php') ?>" class="rounded-lg bg-slate-50 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100">+ New</a>
+    <a href="<?= url('ticket-new.php') ?>" class="rounded-md bg-zinc-50 px-3 py-1.5 text-[13px] text-zinc-700 hover:bg-zinc-100">+ New</a>
   </div>
 
   <?php if (!$tickets): ?>
     <div class="p-12 text-center">
-      <p class="text-slate-500">No tickets match these filters<?= $periodLabel === 'All time' ? '' : ' in ' . e($periodLabel) ?>.</p>
+      <p class="text-zinc-500">No tickets match these filters<?= $periodLabel === 'All time' ? '' : ' in ' . e($periodLabel) ?>.</p>
       <?php if ($month !== 'all' || $year !== 'all'): ?>
-        <a href="?<?= $qs(['month' => 'all', 'year' => 'all', 'page' => 1]) ?>" class="mt-2 inline-block text-sm text-brand-600 hover:text-brand-700">Look across all months →</a>
+        <a href="?<?= $qs(['month' => 'all', 'year' => 'all', 'page' => 1]) ?>" class="mt-2 inline-block text-[13px] text-brand-600 hover:text-brand-700">Look across all months →</a>
       <?php endif; ?>
     </div>
   <?php else: ?>
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[820px] text-left text-sm">
-        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+      <table class="w-full min-w-[820px] text-left text-[13px]">
+        <thead class="border-b border-zinc-200 bg-zinc-50/70 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
           <tr>
-            <th class="px-5 py-3 font-medium">Ticket</th>
-            <th class="px-5 py-3 font-medium">Requester</th>
-            <th class="px-5 py-3 font-medium">Department</th>
-            <th class="px-5 py-3 font-medium">Assignee</th>
-            <th class="px-5 py-3 font-medium">Priority</th>
-            <th class="px-5 py-3 font-medium">Status</th>
-            <th class="px-5 py-3 font-medium">Updated</th>
-            <th class="px-5 py-3 font-medium text-right">Action</th>
+            <th class="px-3 py-2 font-medium">Ticket</th>
+            <th class="px-3 py-2 font-medium">Requester</th>
+            <th class="px-3 py-2 font-medium">Department</th>
+            <th class="px-3 py-2 font-medium">Assignee</th>
+            <th class="px-3 py-2 font-medium">Priority</th>
+            <th class="px-3 py-2 font-medium">Status</th>
+            <th class="px-3 py-2 font-medium">Updated</th>
+            <th class="px-3 py-2 font-medium text-right">Action</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-200">
+        <tbody class="divide-y divide-zinc-100">
           <?php foreach ($tickets as $t): ?>
-            <tr class="transition hover:bg-slate-50">
-              <td class="px-5 py-3.5">
+            <tr class="transition hover:bg-zinc-50">
+              <td class="px-3 py-2">
                 <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="block max-w-xs">
-                  <span class="block truncate font-medium text-slate-900"><?= e($t['subject']) ?></span>
-                  <span class="text-xs text-brand-600"><?= e($t['code']) ?></span>
+                  <span class="block truncate font-medium text-zinc-900"><?= e($t['subject']) ?></span>
+                  <span class="text-[11px] text-brand-600"><?= e($t['code']) ?></span>
                 </a>
               </td>
-              <td class="px-5 py-3.5 text-slate-600"><?= e($t['requester_name']) ?></td>
-              <td class="px-5 py-3.5 text-slate-500"><?= e($t['dept_name'] ?? '—') ?></td>
-              <td class="px-5 py-3.5 text-slate-500"><?= e($t['agent_name'] ?? 'Unassigned') ?></td>
-              <td class="px-5 py-3.5"><?= priority_badge($t['priority']) ?></td>
-              <td class="px-5 py-3.5"><?= status_badge($t['status']) ?></td>
-              <td class="whitespace-nowrap px-5 py-3.5 text-slate-500"><?= e(time_ago($t['updated_at'])) ?></td>
-              <td class="whitespace-nowrap px-5 py-3.5 text-right">
+              <td class="px-3 py-2 text-zinc-600"><?= e($t['requester_name']) ?></td>
+              <td class="px-3 py-2 text-zinc-500"><?= e($t['dept_name'] ?? '—') ?></td>
+              <td class="px-3 py-2 text-zinc-500"><?= e($t['agent_name'] ?? 'Unassigned') ?></td>
+              <td class="px-3 py-2"><?= priority_badge($t['priority']) ?></td>
+              <td class="px-3 py-2"><?= status_badge($t['status']) ?></td>
+              <td class="whitespace-nowrap px-3 py-2 text-zinc-500"><?= e(time_ago($t['updated_at'])) ?></td>
+              <td class="whitespace-nowrap px-3 py-2 text-right">
                 <?php if (can_resolve_ticket($t)): ?>
                   <button type="button"
                           data-resolve
@@ -230,7 +230,7 @@ require __DIR__ . '/layout/header.php';
                           data-subject="<?= e($t['subject']) ?>"
                           data-requester="<?= e($t['requester_name']) ?>"
                           title="Add your resolution and mark it complete"
-                          class="inline-flex items-center gap-1.5 rounded-lg border border-brand-500 px-2.5 py-1.5 text-xs font-semibold text-brand-600 transition hover:bg-brand-50">
+                          class="inline-flex items-center gap-1.5 rounded-md border border-brand-500 px-2.5 py-1.5 text-[11px] font-semibold text-brand-600 transition hover:bg-brand-50">
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M16.9 3.8a2.1 2.1 0 013 3L7.5 19.2l-4 1 1-4L16.9 3.8z"/>
                     </svg>
@@ -243,24 +243,24 @@ require __DIR__ . '/layout/header.php';
                       <?= csrf_field() ?>
                       <input type="hidden" name="action" value="acknowledge">
                       <input type="hidden" name="ticket_id" value="<?= $t['id'] ?>">
-                      <button class="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700">
+                      <button class="rounded-md bg-emerald-600 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700">
                         Acknowledge
                       </button>
                     </form>
                     <button type="button" data-reraise data-id="<?= $t['id'] ?>" data-code="<?= e($t['code']) ?>"
-                            class="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50">
+                            class="rounded-md border border-rose-300 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-50">
                       Raise again
                     </button>
                   </div>
 
                 <?php elseif (is_ticket_requester($t) && $t['status'] === 'closed'): ?>
                   <button type="button" data-reraise data-id="<?= $t['id'] ?>" data-code="<?= e($t['code']) ?>"
-                          class="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100">
+                          class="rounded-md border border-zinc-200 px-2.5 py-1.5 text-[11px] text-zinc-600 transition hover:bg-zinc-100">
                     Raise again
                   </button>
 
                 <?php else: ?>
-                  <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="text-xs text-brand-600 hover:text-brand-700">Open →</a>
+                  <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="text-[11px] text-brand-600 hover:text-brand-700">Open →</a>
                 <?php endif; ?>
               </td>
             </tr>
@@ -270,12 +270,12 @@ require __DIR__ . '/layout/header.php';
     </div>
 
     <?php if ($pages > 1): ?>
-      <div class="flex items-center justify-between border-t border-slate-200 px-5 py-3">
-        <p class="text-xs text-slate-500">Page <?= $page ?> of <?= $pages ?></p>
+      <div class="flex items-center justify-between border-t border-zinc-200 px-3 py-2">
+        <p class="text-[11px] text-zinc-500">Page <?= $page ?> of <?= $pages ?></p>
         <div class="flex gap-1">
           <?php for ($i = 1; $i <= $pages; $i++): ?>
             <a href="?<?= $qs(['page' => $i]) ?>"
-               class="rounded-lg px-3 py-1.5 text-sm <?= $i === $page ? 'bg-brand-500 text-white' : 'text-slate-500 hover:bg-slate-50' ?>"><?= $i ?></a>
+               class="rounded-md px-3 py-1.5 text-[13px] <?= $i === $page ? 'bg-brand-500 text-white' : 'text-zinc-500 hover:bg-zinc-50' ?>"><?= $i ?></a>
           <?php endfor; ?>
         </div>
       </div>
@@ -284,78 +284,78 @@ require __DIR__ . '/layout/header.php';
 </div>
 
 <!-- Resolution dialog: IT writes what they did, and the ticket goes to Completed. -->
-<div id="resolveModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <form method="post" class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="resolveModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
+  <form method="post" class="w-full max-w-lg rounded-lg border border-zinc-200 bg-white p-6 shadow-lg">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="resolve">
     <input type="hidden" name="ticket_id" id="rm_id">
 
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
-        <h3 class="text-base font-semibold text-slate-900">Resolve ticket</h3>
-        <p class="mt-0.5 truncate text-sm text-slate-500">
+        <h3 class="text-[15px] font-semibold text-zinc-900">Resolve ticket</h3>
+        <p class="mt-0.5 truncate text-[13px] text-zinc-500">
           <span id="rm_code" class="font-medium text-brand-600"></span> · <span id="rm_subject"></span>
         </p>
       </div>
-      <button type="button" data-close class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close">
+      <button type="button" data-close class="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" aria-label="Close">
         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
 
     <div class="mt-5 space-y-4">
       <div>
-        <label for="rm_resolution" class="mb-1 block text-sm text-slate-600">Resolution</label>
+        <label for="rm_resolution" class="mb-1 block text-[13px] text-zinc-600">Resolution</label>
         <textarea id="rm_resolution" name="resolution" rows="5" required minlength="5"
                   placeholder="What did you do to fix it? This is shown to the person who raised the ticket."
-                  class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
+                  class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
       </div>
 
       <div>
-        <label class="mb-1 block text-sm text-slate-600">Update status</label>
-        <select disabled class="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-700">
+        <label class="mb-1 block text-[13px] text-zinc-600">Update status</label>
+        <select disabled class="w-full rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2 text-[13px] text-zinc-700">
           <option><?= e(STATUSES['resolved']) ?></option>
         </select>
-        <p class="mt-1.5 text-xs text-slate-500">
-          Submitting sets the ticket to <span class="font-medium text-slate-700"><?= e(STATUSES['resolved']) ?></span>.
+        <p class="mt-1.5 text-[11px] text-zinc-500">
+          Submitting sets the ticket to <span class="font-medium text-zinc-700"><?= e(STATUSES['resolved']) ?></span>.
           <span id="rm_requester"></span> is then asked to acknowledge it, which closes it.
         </p>
       </div>
     </div>
 
     <div class="mt-6 flex justify-end gap-3">
-      <button type="button" data-close class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
-      <button type="submit" class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">Submit</button>
+      <button type="button" data-close class="rounded-md border border-zinc-200 px-3 py-2 text-[13px] text-zinc-600 hover:bg-zinc-100">Cancel</button>
+      <button type="submit" class="rounded-md bg-brand-500 px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-brand-600">Submit</button>
     </div>
   </form>
 </div>
 
 <!-- Raise again: the requester says it is still broken. -->
-<div id="reraiseModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-  <form method="post" class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+<div id="reraiseModal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-zinc-900/40 p-4 backdrop-blur-sm">
+  <form method="post" class="w-full max-w-lg rounded-lg border border-zinc-200 bg-white p-6 shadow-lg">
     <?= csrf_field() ?>
     <input type="hidden" name="action" value="not_resolved">
     <input type="hidden" name="ticket_id" id="rr_id">
 
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h3 class="text-base font-semibold text-slate-900">Raise this ticket again</h3>
-        <p class="mt-0.5 text-sm text-slate-500"><span id="rr_code" class="font-medium text-brand-600"></span></p>
+        <h3 class="text-[15px] font-semibold text-zinc-900">Raise this ticket again</h3>
+        <p class="mt-0.5 text-[13px] text-zinc-500"><span id="rr_code" class="font-medium text-brand-600"></span></p>
       </div>
-      <button type="button" data-close class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close">
+      <button type="button" data-close class="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" aria-label="Close">
         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
 
     <div class="mt-5">
-      <label for="rr_reason" class="mb-1 block text-sm text-slate-600">What is still wrong? <span class="text-slate-400">(optional)</span></label>
+      <label for="rr_reason" class="mb-1 block text-[13px] text-zinc-600">What is still wrong? <span class="text-zinc-400">(optional)</span></label>
       <textarea id="rr_reason" name="reason" rows="4" placeholder="e.g. the projector still shows no signal"
-                class="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
-      <p class="mt-1.5 text-xs text-slate-500">It goes back to the Super Admin to be assigned to an IT person again.</p>
+                class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
+      <p class="mt-1.5 text-[11px] text-zinc-500">It goes back to the Super Admin to be assigned to an IT person again.</p>
     </div>
 
     <div class="mt-6 flex justify-end gap-3">
-      <button type="button" data-close class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
-      <button type="submit" class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-600">Raise again</button>
+      <button type="button" data-close class="rounded-md border border-zinc-200 px-3 py-2 text-[13px] text-zinc-600 hover:bg-zinc-100">Cancel</button>
+      <button type="submit" class="rounded-md bg-brand-500 px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-brand-600">Raise again</button>
     </div>
   </form>
 </div>

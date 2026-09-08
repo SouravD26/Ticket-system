@@ -190,9 +190,9 @@ function attachment_list(array $items): string
     if (!$items) return '';
     $out = '<div class="mt-3 flex flex-wrap gap-2">';
     foreach ($items as $a) {
-        $out .= '<a href="' . url('download.php?id=' . $a['id']) . '" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">'
+        $out .= '<a href="' . url('download.php?id=' . $a['id']) . '" class="inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] text-zinc-600 hover:bg-zinc-100">'
              . '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.4 11.6l-9.2 9.2a5 5 0 01-7-7l9.2-9.2a3.3 3.3 0 114.7 4.7l-9.2 9.2a1.7 1.7 0 11-2.4-2.4l8.5-8.5"/></svg>'
-             . e($a['original_name']) . '<span class="text-slate-500">' . human_size((int)$a['size_bytes']) . '</span></a>';
+             . e($a['original_name']) . '<span class="text-zinc-500">' . human_size((int)$a['size_bytes']) . '</span></a>';
     }
     return $out . '</div>';
 }
@@ -200,72 +200,72 @@ function attachment_list(array $items): string
 <div class="grid gap-4 lg:grid-cols-3">
   <!-- Conversation -->
   <div class="space-y-4 lg:col-span-2">
-    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+    <div class="rounded-lg border border-zinc-200 bg-white shadow-sm p-6">
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p class="text-xs font-medium text-brand-600"><?= e($ticket['code']) ?></p>
-          <h2 class="mt-1 text-xl font-semibold text-slate-900"><?= e($ticket['subject']) ?></h2>
-          <p class="mt-1 text-xs text-slate-500">
+          <p class="text-[11px] font-medium text-brand-600"><?= e($ticket['code']) ?></p>
+          <h2 class="mt-1 text-xl font-semibold text-zinc-900"><?= e($ticket['subject']) ?></h2>
+          <p class="mt-1 text-[11px] text-zinc-500">
             Opened by <?= e($ticket['requester_name']) ?> · <?= date('M j, Y g:i a', strtotime($ticket['created_at'])) ?>
           </p>
         </div>
         <div class="flex gap-2"><?= priority_badge($ticket['priority']) ?><?= status_badge($ticket['status']) ?></div>
       </div>
 
-      <div class="mt-5 whitespace-pre-wrap border-t border-slate-200 pt-5 text-sm leading-relaxed text-slate-600"><?= e($ticket['body']) ?></div>
+      <div class="mt-5 whitespace-pre-wrap border-t border-zinc-200 pt-5 text-[13px] leading-relaxed text-zinc-600"><?= e($ticket['body']) ?></div>
       <?= attachment_list($byReply[0] ?? []) ?>
     </div>
 
     <?php foreach ($replies as $r): ?>
-      <div class="rounded-2xl border <?= $r['is_internal'] ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white' ?> p-5">
+      <div class="rounded-lg border <?= $r['is_internal'] ? 'border-amber-300 bg-amber-50' : 'border-zinc-200 bg-white' ?> p-4">
         <div class="flex items-center gap-3">
-          <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full <?= $r['role'] === 'user' ? 'bg-slate-100' : 'bg-brand-100 text-brand-600' ?> text-xs font-semibold"><?= e(initials($r['name'])) ?></div>
+          <div class="grid h-7 w-7 shrink-0 place-items-center rounded-full <?= $r['role'] === 'user' ? 'bg-zinc-100' : 'bg-brand-100 text-brand-600' ?> text-[11px] font-semibold"><?= e(initials($r['name'])) ?></div>
           <div class="min-w-0">
-            <p class="text-sm font-medium text-slate-900">
+            <p class="text-[13px] font-medium text-zinc-900">
               <?= e($r['name']) ?>
               <?php if ($r['role'] !== 'user'): ?><span class="ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-brand-600 ring-1 ring-inset ring-brand-500/25">Staff</span><?php endif; ?>
               <?php if ($r['is_internal']): ?><span class="ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-600/20">Internal</span><?php endif; ?>
             </p>
-            <p class="text-xs text-slate-500"><?= date('M j, Y g:i a', strtotime($r['created_at'])) ?></p>
+            <p class="text-[11px] text-zinc-500"><?= date('M j, Y g:i a', strtotime($r['created_at'])) ?></p>
           </div>
         </div>
         <?php if ($r['message'] !== ''): ?>
-          <div class="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-600"><?= e($r['message']) ?></div>
+          <div class="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-zinc-600"><?= e($r['message']) ?></div>
         <?php endif; ?>
         <?= attachment_list($byReply[(int)$r['id']] ?? []) ?>
       </div>
     <?php endforeach; ?>
 
     <?php if (is_ticket_requester($ticket) && $awaitingAck): ?>
-      <div class="rounded-2xl border border-emerald-300 bg-emerald-50 p-6">
-        <h3 class="text-sm font-semibold text-emerald-700">
+      <div class="rounded-lg border border-emerald-300 bg-emerald-50 p-6">
+        <h3 class="text-[13px] font-semibold text-emerald-700">
           <?= e($ticket['agent_name'] ?? 'IT') ?> has marked this complete
         </h3>
-        <p class="mt-1 text-sm text-slate-500">
+        <p class="mt-1 text-[13px] text-zinc-500">
           Please confirm the problem is actually sorted. Acknowledging closes the ticket; if it is not fixed,
           raising it again sends it back to the Super Admin, who will hand it to an IT person afresh.
         </p>
         <form method="post" class="mt-5">
           <?= csrf_field() ?>
-          <label class="mb-1 block text-xs text-slate-500">If it is not fixed, tell them what is still wrong (optional)</label>
+          <label class="mb-1 block text-[11px] text-zinc-500">If it is not fixed, tell them what is still wrong (optional)</label>
           <input name="reason" placeholder="e.g. the projector still shows no signal"
-                 class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
+                 class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             <button name="action" value="acknowledge"
-                    class="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700">
+                    class="rounded-md bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-emerald-700">
               Acknowledge &amp; close
             </button>
             <button name="action" value="not_resolved"
-                    class="rounded-xl border border-rose-300 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-50">
+                    class="rounded-md border border-rose-300 bg-white px-3 py-2 text-[13px] font-semibold text-rose-700 transition hover:bg-rose-50">
               Not resolved — raise it again
             </button>
           </div>
         </form>
       </div>
     <?php elseif (is_ticket_requester($ticket) && $ticket['status'] === 'closed'): ?>
-      <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-        <h3 class="text-sm font-semibold text-slate-900">This ticket is closed</h3>
-        <p class="mt-1 text-sm text-slate-500">
+      <div class="rounded-lg border border-zinc-200 bg-white shadow-sm p-6">
+        <h3 class="text-[13px] font-semibold text-zinc-900">This ticket is closed</h3>
+        <p class="mt-1 text-[13px] text-zinc-500">
           You acknowledged the work<?= $ticket['acknowledged_at'] ? ' on ' . date('M j, Y', strtotime($ticket['acknowledged_at'])) : '' ?>.
           If the problem has come back, raise this same ticket again.
         </p>
@@ -273,30 +273,30 @@ function attachment_list(array $items): string
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="not_resolved">
           <input name="reason" placeholder="What went wrong again? (optional)"
-                 class="min-w-[14rem] flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-400">
-          <button class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Raise again</button>
+                 class="min-w-[14rem] flex-1 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
+          <button class="rounded-md bg-brand-500 px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-600">Raise again</button>
         </form>
       </div>
     <?php endif; ?>
 
     <?php if (is_admin()): ?>
-      <p class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-center text-sm text-slate-500">Read-only view — Admin accounts report on tickets, they do not answer them.</p>
+      <p class="rounded-lg border border-zinc-200 bg-white shadow-sm p-6 text-center text-[13px] text-zinc-500">Read-only view — Admin accounts report on tickets, they do not answer them.</p>
     <?php elseif ($ticket['status'] === 'closed' && !can_work_tickets() && !is_ticket_requester($ticket)): ?>
-      <p class="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 text-center text-sm text-slate-500">This ticket is closed.</p>
+      <p class="rounded-lg border border-zinc-200 bg-white shadow-sm p-6 text-center text-[13px] text-zinc-500">This ticket is closed.</p>
     <?php else: ?>
-      <form method="post" enctype="multipart/form-data" class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+      <form method="post" enctype="multipart/form-data" class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="reply">
-        <h3 class="text-sm font-semibold text-slate-900">Add a reply</h3>
+        <h3 class="text-[13px] font-semibold text-zinc-900">Add a reply</h3>
         <textarea name="message" rows="5" placeholder="Type your message…"
-                  class="mt-3 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
+                  class="mt-3 w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
         <input type="file" name="files[]" multiple
-               class="mt-3 w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-500 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:text-white">
+               class="mt-3 w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-[13px] text-zinc-500 file:mr-4 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-[13px] file:text-white">
         <div class="mt-4 flex flex-wrap items-center gap-4">
-          <button class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Send reply</button>
+          <button class="rounded-md bg-brand-500 px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-600">Send reply</button>
           <?php if (can_work_tickets()): ?>
-            <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-amber-700">
-              <input type="checkbox" name="is_internal" value="1" class="h-4 w-4 rounded border-slate-300 bg-slate-50 text-amber-500">
+            <label class="inline-flex cursor-pointer items-center gap-2 text-[13px] text-amber-700">
+              <input type="checkbox" name="is_internal" value="1" class="h-4 w-4 rounded border-zinc-300 bg-zinc-50 text-amber-500">
               Internal note (hidden from the requester)
             </label>
           <?php endif; ?>
@@ -307,9 +307,9 @@ function attachment_list(array $items): string
 
   <!-- Sidebar -->
   <div class="space-y-4">
-    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-      <h3 class="text-sm font-semibold text-slate-900">Details</h3>
-      <dl class="mt-4 space-y-3 text-sm">
+    <div class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
+      <h3 class="text-[13px] font-semibold text-zinc-900">Details</h3>
+      <dl class="mt-4 space-y-3 text-[13px]">
         <?php
         $details = [
           'Requester'  => $ticket['requester_name'],
@@ -325,8 +325,8 @@ function attachment_list(array $items): string
         ];
         foreach ($details as $k => $v): ?>
           <div class="flex justify-between gap-3">
-            <dt class="text-slate-500"><?= e($k) ?></dt>
-            <dd class="truncate text-right text-slate-600"><?= e($v) ?></dd>
+            <dt class="text-zinc-500"><?= e($k) ?></dt>
+            <dd class="truncate text-right text-zinc-600"><?= e($v) ?></dd>
           </div>
         <?php endforeach; ?>
       </dl>
@@ -334,19 +334,19 @@ function attachment_list(array $items): string
 
     <?php if (is_staff()): ?>
       <?php if (can_work_tickets()): ?>
-      <form method="post" class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+      <form method="post" class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="update">
-        <h3 class="text-sm font-semibold text-slate-900">Manage</h3>
+        <h3 class="text-[13px] font-semibold text-zinc-900">Manage</h3>
         <div class="mt-4 space-y-3">
           <div>
-            <label class="mb-1 block text-xs text-slate-500">Status</label>
-            <select name="status" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+            <label class="mb-1 block text-[11px] text-zinc-500">Status</label>
+            <select name="status" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
               <?php foreach ($statusChoices as $k => $l): ?>
                 <option value="<?= $k ?>" <?= $ticket['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
               <?php endforeach; ?>
             </select>
-            <p class="mt-1 text-xs text-slate-500">
+            <p class="mt-1 text-[11px] text-zinc-500">
               <?= $awaitingAck
                     ? 'Waiting for ' . e($ticket['requester_name']) . ' to acknowledge.'
                     : 'Set “Completed” when the work is done — the requester then acknowledges it and the ticket closes.' ?>
@@ -354,46 +354,46 @@ function attachment_list(array $items): string
           </div>
 
           <div>
-            <label class="mb-1 block text-xs text-slate-500">Priority</label>
+            <label class="mb-1 block text-[11px] text-zinc-500">Priority</label>
             <?php if (can_set_priority()): ?>
-              <select name="priority" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+              <select name="priority" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
                 <?php foreach (PRIORITIES as $k => $l): ?>
                   <option value="<?= $k ?>" <?= $ticket['priority'] === $k ? 'selected' : '' ?>><?= $l ?></option>
                 <?php endforeach; ?>
               </select>
               <?php if (!$ticket['assigned_to']): ?>
-                <p class="mt-1 text-xs text-slate-500">Grade it as you assign it.</p>
+                <p class="mt-1 text-[11px] text-zinc-500">Grade it as you assign it.</p>
               <?php endif; ?>
             <?php else: ?>
-              <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"><?= priority_badge($ticket['priority']) ?></div>
-              <p class="mt-1 text-xs text-slate-500">Only the Super Admin changes priority.</p>
+              <div class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"><?= priority_badge($ticket['priority']) ?></div>
+              <p class="mt-1 text-[11px] text-zinc-500">Only the Super Admin changes priority.</p>
             <?php endif; ?>
           </div>
 
           <div>
-            <label class="mb-1 block text-xs text-slate-500">Assignee<?= can_assign() ? ' (IT staff)' : '' ?></label>
+            <label class="mb-1 block text-[11px] text-zinc-500">Assignee<?= can_assign() ? ' (IT staff)' : '' ?></label>
             <?php if (can_assign()): ?>
-              <select name="assigned_to" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+              <select name="assigned_to" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
                 <option value="">Unassigned</option>
                 <?php foreach ($agents as $a): ?>
                   <option value="<?= $a['id'] ?>" <?= (int)$ticket['assigned_to'] === (int)$a['id'] ? 'selected' : '' ?>><?= e($a['name']) ?></option>
                 <?php endforeach; ?>
               </select>
               <?php if (!$agents): ?>
-                <p class="mt-1 text-xs text-amber-600">No active IT accounts yet — create one under Users.</p>
+                <p class="mt-1 text-[11px] text-amber-600">No active IT accounts yet — create one under Users.</p>
               <?php elseif ($ticket['assigned_to']): ?>
-                <p class="mt-1 text-xs text-slate-500">Pick someone else to re-assign if <?= e($ticket['agent_name']) ?> is unavailable.</p>
+                <p class="mt-1 text-[11px] text-zinc-500">Pick someone else to re-assign if <?= e($ticket['agent_name']) ?> is unavailable.</p>
               <?php endif; ?>
             <?php else: ?>
-              <p class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-500"><?= e($ticket['agent_name'] ?? 'Unassigned') ?></p>
-              <p class="mt-1 text-xs text-slate-500">Only the Super Admin assigns and re-assigns tickets.</p>
+              <p class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-[13px] text-zinc-500"><?= e($ticket['agent_name'] ?? 'Unassigned') ?></p>
+              <p class="mt-1 text-[11px] text-zinc-500">Only the Super Admin assigns and re-assigns tickets.</p>
             <?php endif; ?>
           </div>
 
           <?php if (can_assign()): ?>
             <div>
-              <label class="mb-1 block text-xs text-slate-500">Department</label>
-              <select name="department_id" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+              <label class="mb-1 block text-[11px] text-zinc-500">Department</label>
+              <select name="department_id" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
                 <option value="">— None —</option>
                 <?php foreach ($departments as $d): ?>
                   <option value="<?= $d['id'] ?>" <?= (int)$ticket['department_id'] === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name']) ?></option>
@@ -401,53 +401,53 @@ function attachment_list(array $items): string
               </select>
             </div>
           <?php endif; ?>
-          <button class="w-full rounded-xl bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Save changes</button>
+          <button class="w-full rounded-md bg-brand-500 py-2.5 text-[13px] font-semibold text-white hover:bg-brand-600">Save changes</button>
         </div>
       </form>
       <?php endif; ?>
 
       <?php if (can_log_work($ticket)): ?>
-        <form method="post" class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+        <form method="post" class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="worklog">
-          <h3 class="text-sm font-semibold text-slate-900">Log your work</h3>
-          <p class="mt-1 text-xs text-slate-500">Kept out of the conversation — this is your own record of what you did.</p>
+          <h3 class="text-[13px] font-semibold text-zinc-900">Log your work</h3>
+          <p class="mt-1 text-[11px] text-zinc-500">Kept out of the conversation — this is your own record of what you did.</p>
           <div class="mt-4 space-y-3">
             <input name="summary" required minlength="3" placeholder="What did you do?"
-                   class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+                   class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
             <textarea name="details" rows="3" placeholder="Details (optional)"
-                      class="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400"></textarea>
+                      class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400"></textarea>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="mb-1 block text-xs text-slate-500">Date</label>
+                <label class="mb-1 block text-[11px] text-zinc-500">Date</label>
                 <input name="work_date" type="date" value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>"
-                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+                       class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
               </div>
               <div>
-                <label class="mb-1 block text-xs text-slate-500">Hours</label>
+                <label class="mb-1 block text-[11px] text-zinc-500">Hours</label>
                 <input name="hours" type="number" step="0.25" min="0" max="24" value="1"
-                       class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-400">
+                       class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
               </div>
             </div>
-            <button class="w-full rounded-xl border border-brand-500 py-2.5 text-sm font-semibold text-brand-600 transition hover:bg-brand-50">Add work entry</button>
+            <button class="w-full rounded-md border border-brand-500 py-2.5 text-[13px] font-semibold text-brand-600 transition hover:bg-brand-50">Add work entry</button>
           </div>
         </form>
       <?php endif; ?>
 
-      <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
+      <div class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
         <div class="flex items-baseline justify-between">
-          <h3 class="text-sm font-semibold text-slate-900">Work done</h3>
-          <span class="text-xs text-slate-500"><?= (float)$workHours ?> hrs</span>
+          <h3 class="text-[13px] font-semibold text-zinc-900">Work done</h3>
+          <span class="text-[11px] text-zinc-500"><?= (float)$workHours ?> hrs</span>
         </div>
-        <ul class="mt-3 divide-y divide-slate-200">
+        <ul class="mt-3 divide-y divide-zinc-100">
           <?php foreach ($workLogs as $w): ?>
             <li class="flex items-start gap-3 py-3">
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-slate-900"><?= e($w['summary']) ?></p>
+                <p class="text-[13px] font-medium text-zinc-900"><?= e($w['summary']) ?></p>
                 <?php if ($w['details']): ?>
-                  <p class="mt-0.5 whitespace-pre-line text-xs text-slate-500"><?= e($w['details']) ?></p>
+                  <p class="mt-0.5 whitespace-pre-line text-[11px] text-zinc-500"><?= e($w['details']) ?></p>
                 <?php endif; ?>
-                <p class="mt-1 text-xs text-slate-400">
+                <p class="mt-1 text-[11px] text-zinc-400">
                   <?= e($w['name']) ?> · <?= date('M j, Y', strtotime($w['work_date'])) ?> · <?= (float)$w['hours'] ?>h
                 </p>
               </div>
@@ -456,40 +456,40 @@ function attachment_list(array $items): string
                   <?= csrf_field() ?>
                   <input type="hidden" name="action" value="worklog_delete">
                   <input type="hidden" name="id" value="<?= $w['id'] ?>">
-                  <button class="rounded-lg p-1 text-slate-500 hover:text-rose-600" title="Delete">&times;</button>
+                  <button class="rounded-md p-1 text-zinc-500 hover:text-rose-600" title="Delete">&times;</button>
                 </form>
               <?php endif; ?>
             </li>
           <?php endforeach; ?>
-          <?php if (!$workLogs): ?><li class="py-3 text-sm text-slate-400">No work logged on this ticket yet.</li><?php endif; ?>
+          <?php if (!$workLogs): ?><li class="py-3 text-[13px] text-zinc-400">No work logged on this ticket yet.</li><?php endif; ?>
         </ul>
       </div>
 
-      <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-        <h3 class="text-sm font-semibold text-slate-900">Activity</h3>
+      <div class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
+        <h3 class="text-[13px] font-semibold text-zinc-900">Activity</h3>
         <ol class="mt-4 space-y-3">
           <?php foreach ($activity as $a): ?>
-            <li class="flex gap-3 text-sm">
+            <li class="flex gap-3 text-[13px]">
               <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400"></span>
               <div>
-                <p class="text-slate-600"><?= e($a['detail'] ?: $a['action']) ?></p>
-                <p class="text-xs text-slate-400"><?= e($a['name'] ?? 'System') ?> · <?= e(time_ago($a['created_at'])) ?></p>
+                <p class="text-zinc-600"><?= e($a['detail'] ?: $a['action']) ?></p>
+                <p class="text-[11px] text-zinc-400"><?= e($a['name'] ?? 'System') ?> · <?= e(time_ago($a['created_at'])) ?></p>
               </div>
             </li>
           <?php endforeach; ?>
-          <?php if (!$activity): ?><li class="text-sm text-slate-400">Nothing logged yet.</li><?php endif; ?>
+          <?php if (!$activity): ?><li class="text-[13px] text-zinc-400">Nothing logged yet.</li><?php endif; ?>
         </ol>
       </div>
     <?php endif; ?>
 
     <?php if (is_super()): ?>
       <form method="post" onsubmit="return confirm('Delete this ticket and all its replies? This cannot be undone.');"
-            class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+            class="rounded-lg border border-rose-200 bg-rose-50 p-4">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="delete">
-        <h3 class="text-sm font-semibold text-rose-700">Danger zone</h3>
-        <p class="mt-1 text-xs text-slate-500">Permanently removes the ticket, replies and attachments.</p>
-        <button class="mt-3 w-full rounded-xl border border-rose-300 py-2.5 text-sm font-medium text-rose-700 hover:bg-rose-100">Delete ticket</button>
+        <h3 class="text-[13px] font-semibold text-rose-700">Danger zone</h3>
+        <p class="mt-1 text-[11px] text-zinc-500">Permanently removes the ticket, replies and attachments.</p>
+        <button class="mt-3 w-full rounded-md border border-rose-300 py-2.5 text-[13px] font-medium text-rose-700 hover:bg-rose-100">Delete ticket</button>
       </form>
     <?php endif; ?>
   </div>

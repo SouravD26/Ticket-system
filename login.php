@@ -28,42 +28,48 @@ $pageTitle = 'Sign in';
 require __DIR__ . '/layout/header.php';
 ?>
 <div class="grid min-h-screen lg:grid-cols-2">
-  <div class="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-500 via-brand-600 to-cyan-800 p-12 lg:flex">
-    <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
-    <div class="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-cyan-300/10 blur-3xl"></div>
-    <div class="relative flex items-center gap-2">
-      <div class="grid h-10 w-10 place-items-center rounded-xl bg-white/20 text-lg font-bold text-white ring-1 ring-inset ring-white/30">H</div>
-      <span class="text-xl font-semibold text-white"><?= APP_NAME ?></span>
+  <!-- Flat, quiet, and the same ground as the rest of the app. -->
+  <div class="hidden flex-col justify-between border-r border-zinc-200 bg-white p-12 lg:flex">
+    <div class="flex items-center gap-2.5">
+      <div class="grid h-7 w-7 place-items-center rounded-md bg-brand-500 text-[13px] font-semibold text-white">H</div>
+      <span class="text-sm font-semibold tracking-tight text-zinc-900"><?= APP_NAME ?></span>
     </div>
-    <div class="relative">
-      <h2 class="text-4xl font-bold leading-tight text-white">Support that<br>never drops a thread.</h2>
-      <p class="mt-4 max-w-md text-brand-50/90">Raise it, assign it, complete it — then the person who raised it signs it off. Priorities, departments and a full activity trail, in one clean workspace.</p>
+    <div>
+      <h2 class="max-w-sm text-3xl font-semibold leading-tight tracking-tight text-zinc-900">Support that never drops a thread.</h2>
+      <p class="mt-3 max-w-md text-[13px] leading-relaxed text-zinc-500">Raise it, assign it, complete it — then the person who raised it signs it off. Priorities, departments and a full activity trail, in one workspace.</p>
+      <ul class="mt-6 space-y-2">
+        <?php foreach (['Every ticket assigned by one person', 'The requester signs off the fix', 'Daily task sheets feed the reports'] as $line): ?>
+          <li class="flex items-center gap-2 text-[13px] text-zinc-600">
+            <span class="h-1.5 w-1.5 rounded-full bg-brand-500"></span><?= $line ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
     </div>
-    <p class="relative text-sm text-brand-100/70">&copy; <?= date('Y') ?> <?= APP_NAME ?></p>
+    <p class="text-[11px] text-zinc-400">&copy; <?= date('Y') ?> <?= APP_NAME ?></p>
   </div>
 
   <div class="flex items-center justify-center p-6">
     <div class="w-full max-w-md">
-      <h1 class="text-2xl font-semibold text-slate-900">Sign in</h1>
-      <p class="mt-1 text-sm text-slate-500">Sign in with the User Name issued to you.</p>
+      <h1 class="text-xl font-semibold tracking-tight text-zinc-900">Sign in</h1>
+      <p class="mt-1 text-[13px] text-zinc-500">Sign in with the User Name issued to you.</p>
 
       <?php foreach ($errors as $er): ?>
-        <div class="mt-5 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-700"><?= e($er) ?></div>
+        <div class="mt-5 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-[13px] text-rose-700"><?= e($er) ?></div>
       <?php endforeach; ?>
 
       <form method="post" class="mt-6 space-y-4">
         <?= csrf_field() ?>
         <div>
-          <label class="mb-1 block text-sm text-slate-600">User Name</label>
-          <input name="login" required autofocus placeholder="Your user ID" value="<?= e($_POST['login'] ?? '') ?>" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
+          <label class="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-400">User Name</label>
+          <input name="login" required autofocus placeholder="Your user ID" value="<?= e($_POST['login'] ?? '') ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
         </div>
         <div>
-          <label class="mb-1 block text-sm text-slate-600">Password</label>
-          <input name="password" type="password" required class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
+          <label class="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Password</label>
+          <input name="password" type="password" required class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
         </div>
-        <button class="w-full rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600">Sign in</button>
+        <button class="w-full rounded-md bg-brand-500 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-brand-600">Sign in</button>
       </form>
-      <p class="mt-6 text-center text-xs text-slate-500">Accounts are issued by the Super Admin.</p>
+      <p class="mt-6 text-center text-[11px] text-zinc-500">Accounts are issued by the Super Admin.</p>
     </div>
   </div>
 </div>
