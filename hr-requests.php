@@ -13,14 +13,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id   = (int) post('id');
     $kind = post('kind') === 'offboarding' ? 'offboarding' : 'onboarding';
 
+    /* Not finished, and the reason why. It stays on the Super Admin's desk and
+       in HR's view, and can still be marked done afterwards. */
+    if (post('action') === 'pending' && $id) {
+        $note = post('note');
+        if ($note === '') {
+            flash('Write what is pending before saving it.', 'error');
+        } else {
+            q("UPDATE `$kind` SET admin_pending_note = ?, admin_pending_at = NOW(), status = 'in_progress'
+               WHERE id = ?", [$note, $id]);
+            flash('Saved as pending. HR can see what is outstanding.');
+        }
+        redirect('hr-requests.php?open=' . $id . '&kind=' . $kind);
+    }
+
     if (post('action') === 'done' && $id) {
-        q("UPDATE `$kind` SET admin_done_at = NOW(), admin_done_by = ?, admin_note = ?, status = 'completed'
+        q("UPDATE `$kind` SET admin_done_at = NOW(), admin_done_by = ?, admin_note = ?,
+                                admin_pending_note = NULL, admin_pending_at = NULL, status = 'completed'
            WHERE id = ? AND admin_done_at IS NULL", [$me['id'], post('note') ?: null, $id]);
         flash('Marked done. HR can see it on their list.');
     }
 
     if (post('action') === 'reopen' && $id) {
-        q("UPDATE `$kind` SET admin_done_at = NULL, admin_done_by = NULL, admin_note = NULL, status = 'in_progress'
+        q("UPDATE `$kind` SET admin_done_at = NULL, admin_done_by = NULL, admin_note = NULL,
+                                admin_pending_note = NULL, admin_pending_at = NULL, status = 'in_progress'
            WHERE id = ?", [$id]);
         flash('Reopened — it is back on your desk.');
     }
@@ -79,6 +95,10 @@ $card = function (array $r, string $kind) use ($open, $openKind, $done) {
               <span class="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-700">
                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Done
               </span>
+            <?php elseif ($r['admin_pending_note']): ?>
+              <span class="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>Pending
+              </span>
             <?php endif; ?>
           </div>
           <p class="mt-0.5 text-[11px] text-zinc-500">
@@ -120,14 +140,25 @@ $card = function (array $r, string $kind) use ($open, $openKind, $done) {
                   <button class="rounded-md border border-zinc-200 px-3 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50">Reopen</button>
                 </form>
               <?php else: ?>
+                <?php if ($r['admin_pending_note']): ?>
+                  <p class="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-800">
+                    <span class="font-medium">Pending:</span> <?= e($r['admin_pending_note']) ?>
+                    <span class="text-amber-600">· <?= date('M j, g:i a', strtotime($r['admin_pending_at'])) ?></span>
+                  </p>
+                <?php endif; ?>
                 <form method="post" class="flex flex-wrap items-center gap-2">
                   <?= csrf_field() ?>
-                  <input type="hidden" name="action" value="done">
                   <input type="hidden" name="kind" value="<?= $kind ?>">
                   <input type="hidden" name="id" value="<?= $r['id'] ?>">
-                  <input name="note" placeholder="Note back to HR (optional)"
+                  <input name="note" value="<?= e($r['admin_pending_note'] ?? '') ?>"
+                         placeholder="What is pending, or a note back to HR"
                          class="min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-[12px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-400">
-                  <button class="rounded-md bg-brand-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition hover:bg-brand-600">Mark done</button>
+                  <button name="action" value="pending"
+                          class="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-[12px] font-medium text-amber-800 transition hover:bg-amber-100">
+                    <?= $r['admin_pending_note'] ? 'Update pending' : 'Mark pending' ?>
+                  </button>
+                  <button name="action" value="done"
+                          class="rounded-md bg-brand-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition hover:bg-brand-600">Mark done</button>
                 </form>
               <?php endif; ?>
             </div>

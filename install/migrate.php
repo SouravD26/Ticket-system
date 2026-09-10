@@ -130,6 +130,8 @@ try {
             'admin_done_at' => 'DATETIME DEFAULT NULL',
             'admin_done_by' => 'INT UNSIGNED DEFAULT NULL',
             'admin_note'    => 'VARCHAR(255) DEFAULT NULL',
+            'admin_pending_note' => 'VARCHAR(255) DEFAULT NULL',
+            'admin_pending_at'   => 'DATETIME DEFAULT NULL',
         ];
         foreach ($need as $col => $def) {
             if (isset($have[$col])) { $log[] = "$tbl.$col already present."; continue; }

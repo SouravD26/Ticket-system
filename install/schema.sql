@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS onboarding (
   admin_done_at DATETIME DEFAULT NULL,
   admin_done_by INT UNSIGNED DEFAULT NULL,
   admin_note    VARCHAR(255) DEFAULT NULL,
+  admin_pending_note VARCHAR(255) DEFAULT NULL,
+  admin_pending_at   DATETIME DEFAULT NULL,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_ob_dept (department_id),
   KEY idx_ob_date (join_date)
@@ -54,6 +56,8 @@ CREATE TABLE IF NOT EXISTS offboarding (
   admin_done_at  DATETIME DEFAULT NULL,
   admin_done_by  INT UNSIGNED DEFAULT NULL,
   admin_note     VARCHAR(255) DEFAULT NULL,
+  admin_pending_note VARCHAR(255) DEFAULT NULL,
+  admin_pending_at   DATETIME DEFAULT NULL,
   created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_off_dept (department_id),
   KEY idx_off_date (last_working_day)

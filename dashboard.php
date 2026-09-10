@@ -96,6 +96,32 @@ $taskStats = can_fill_tasks()
            [$me['id'], $me['id'], $me['id']])->fetch()
     : null;
 
+/**
+ * HR watches its own filings from here: what is still with the Super Admin,
+ * what he has flagged as pending, and what he has signed off.
+ */
+$people = [];
+$peopleCounts = ['waiting' => 0, 'pending' => 0, 'done' => 0];
+if (is_hr()) {
+    $people = q("(SELECT id, employee_name, join_date AS on_date, status,
+                        admin_pending_note, admin_done_at, admin_note, 'onboarding' AS kind
+                 FROM onboarding)
+                UNION ALL
+                (SELECT id, employee_name, last_working_day AS on_date, status,
+                        admin_pending_note, admin_done_at, admin_note, 'offboarding' AS kind
+                 FROM offboarding)
+                ORDER BY admin_done_at IS NOT NULL, on_date DESC
+                LIMIT 8")->fetchAll();
+
+    $peopleCounts = q("SELECT
+        SUM(admin_done_at IS NULL AND admin_pending_note IS NULL) waiting,
+        SUM(admin_done_at IS NULL AND admin_pending_note IS NOT NULL) pending,
+        SUM(admin_done_at IS NOT NULL) done
+      FROM ((SELECT admin_done_at, admin_pending_note FROM onboarding)
+            UNION ALL
+            (SELECT admin_done_at, admin_pending_note FROM offboarding)) x")->fetch();
+}
+
 $pageTitle = 'Dashboard';
 require __DIR__ . '/layout/header.php';
 ?>
@@ -283,6 +309,66 @@ require __DIR__ . '/layout/header.php';
     });
   })();
   </script>
+<?php endif; ?>
+
+<?php if (is_hr()): ?>
+  <div class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5">
+      <h2 class="text-[13px] font-semibold text-zinc-900">Onboarding &amp; offboarding</h2>
+      <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+        <span class="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-0.5 font-medium text-zinc-600">
+          <span class="h-1.5 w-1.5 rounded-full bg-zinc-400"></span><?= (int)$peopleCounts['waiting'] ?> with Super Admin
+        </span>
+        <span class="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-800">
+          <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span><?= (int)$peopleCounts['pending'] ?> pending
+        </span>
+        <span class="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span><?= (int)$peopleCounts['done'] ?> done
+        </span>
+      </div>
+    </div>
+
+    <?php if (!$people): ?>
+      <p class="p-8 text-center text-[13px] text-zinc-500">
+        Nothing filed yet.
+        <a href="<?= url('onboarding.php?add=1') ?>" class="font-medium text-brand-600 hover:text-brand-700">Add a joiner &rarr;</a>
+      </p>
+    <?php else: ?>
+      <ul class="divide-y divide-zinc-100">
+        <?php foreach ($people as $r): $isJoin = $r['kind'] === 'onboarding'; ?>
+          <li class="flex flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+            <a href="<?= url($r['kind'] . '.php') ?>" class="min-w-0 flex-1">
+              <p class="truncate text-[13px] font-medium text-zinc-900"><?= e($r['employee_name']) ?></p>
+              <p class="truncate text-[11px] text-zinc-500">
+                <?= $isJoin ? 'Onboarding' : 'Offboarding' ?>
+                · <?= $isJoin ? 'joins' : 'last day' ?> <?= date('M j, Y', strtotime($r['on_date'])) ?>
+                <?php if (!$r['admin_done_at'] && $r['admin_pending_note']): ?>
+                  · <span class="text-amber-700">pending: <?= e($r['admin_pending_note']) ?></span>
+                <?php elseif ($r['admin_done_at'] && $r['admin_note']): ?>
+                  · <span class="text-emerald-700"><?= e($r['admin_note']) ?></span>
+                <?php endif; ?>
+              </p>
+            </a>
+            <div class="shrink-0">
+              <?php if ($r['admin_done_at']): ?>
+                <span class="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Done by Super Admin
+                </span>
+              <?php elseif ($r['admin_pending_note']): ?>
+                <span class="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                  <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>Pending
+                </span>
+              <?php else: ?>
+                <span class="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                  <span class="h-1.5 w-1.5 rounded-full bg-zinc-400"></span>With Super Admin
+                </span>
+              <?php endif; ?>
+            </div>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+  </div>
 <?php endif; ?>
 
 <div class="mt-3 grid gap-3 lg:grid-cols-3">

@@ -182,7 +182,11 @@ $form = function (array $r, bool $isNew) use ($field, $label, $departments) { ?>
                   <div class="flex flex-wrap items-center gap-2">
                     <p class="truncate text-[13px] font-medium text-zinc-900"><?= e($r['employee_name']) ?></p>
                     <?= people_status_badge($r['status']) ?>
-                    <?php if ($r['admin_done_at']): ?>
+                    <?php if (!$r['admin_done_at'] && $r['admin_pending_note']): ?>
+                      <span class="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                        <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>Pending with Super Admin
+                      </span>
+                    <?php elseif ($r['admin_done_at']): ?>
                       <span class="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
                             title="Marked done by the Super Admin on <?= date('M j, Y g:i a', strtotime($r['admin_done_at'])) ?>">
                         <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Done by Super Admin
@@ -198,6 +202,11 @@ $form = function (array $r, bool $isNew) use ($field, $label, $departments) { ?>
                     · joins <?= date('M j, Y', strtotime($r['join_date'])) ?>
                     <?= $r['email'] ? ' · ' . e($r['email']) : '' ?>
                   </p>
+                  <?php if (!$r['admin_done_at'] && $r['admin_pending_note']): ?>
+                    <p class="mt-1 rounded-md border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-[12px] text-amber-800">
+                      Super Admin — pending: <?= e($r['admin_pending_note']) ?>
+                    </p>
+                  <?php endif; ?>
                   <?php if ($r['admin_done_at'] && $r['admin_note']): ?>
                     <p class="mt-1 rounded-md border border-emerald-200 bg-emerald-50/60 px-2.5 py-1.5 text-[12px] text-emerald-800">
                       Super Admin: <?= e($r['admin_note']) ?>
