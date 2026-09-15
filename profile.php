@@ -13,7 +13,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = post('name');
         // Only the Super Admin changes email addresses.
         $email = is_super() ? post('email') : $me['email'];
-        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        // Only the address the user actually submitted is checked. Validating the stored one
+        // would lock everybody else out of saving their own name over an address they cannot
+        // even edit — accounts seeded without an email hold a placeholder the filter rejects.
+        $emailOk = $email === $me['email'] || filter_var($email, FILTER_VALIDATE_EMAIL);
+        if ($name === '' || !$emailOk) {
             flash('Name and a valid email are required.', 'error');
         } elseif (q('SELECT id FROM users WHERE email = ? AND id <> ?', [$email, $me['id']])->fetch()) {
             flash('That email belongs to another account.', 'error');

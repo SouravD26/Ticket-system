@@ -51,7 +51,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('That email is already registered.', 'error');
         } else {
             q('INSERT INTO users (name, username, email, password, role, phone, department_id) VALUES (?,?,?,?,?,?,?)',
-              [$name, $username, $email ?: $username . '@local', password_hash($pass, PASSWORD_DEFAULT), $role,
+            // email is NOT NULL, so an account created without one gets a placeholder. It has
+            // to be a *valid* address or every later filter_var() check on this row fails and
+            // the account can no longer be edited — .invalid is reserved for exactly this.
+              [$name, $username, $email ?: $username . '@local.invalid', password_hash($pass, PASSWORD_DEFAULT), $role,
                post('phone') ?: null, $dept ?: null]);
             flash($assignable[$role] . ' account "' . $username . '" created.');
         }
@@ -65,9 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role  = post('role');
         $dept  = (int) post('department_id');
 
+        // The form is prefilled with the stored address. Accounts created before the
+        // placeholder was made a valid address hold things like "bob@local", which the
+        // filter rejects — so only check the format when the address is actually changed.
+        $emailUnchanged = $email !== '' && $email === (q('SELECT email FROM users WHERE id = ?', [$id])->fetch()['email'] ?? null);
+
         if ($name === '') {
             flash('Name is required.', 'error');
-        } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        } elseif ($email !== '' && !$emailUnchanged && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             flash('That email address is not valid.', 'error');
         } elseif ($email !== '' && q('SELECT id FROM users WHERE email = ? AND id <> ?', [$email, $id])->fetch()) {
             flash('Another account already uses that email.', 'error');

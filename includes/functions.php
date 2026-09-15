@@ -296,7 +296,9 @@ function it_agents(): array
  */
 function assign_ticket(array $ticket, ?int $agentId, ?string $priority = null): void
 {
-    $was     = (int) $ticket['assigned_to'];
+    // Both sides must be nullable ints, or an unassigned ticket compares 0 !== null and
+    // every save logs a bogus "Assigned to nobody" move.
+    $was     = $ticket['assigned_to'] !== null ? (int) $ticket['assigned_to'] : null;
     $agentId = $agentId ?: null;
     $newPri  = ($priority !== null && isset(PRIORITIES[$priority])) ? $priority : $ticket['priority'];
 

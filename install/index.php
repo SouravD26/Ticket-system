@@ -25,10 +25,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $log[] = 'Database `' . DB_NAME . '` ready.';
 
         $pdo->exec('USE `' . DB_NAME . '`');
-        $sql = file_get_contents(__DIR__ . '/schema.sql');
-        foreach (array_filter(array_map('trim', explode(";\n", $sql))) as $stmt) {
-            if ($stmt === '' || str_starts_with($stmt, '--')) continue;
-            $pdo->exec($stmt);
+        // Normalise line endings first: the file is often saved CRLF, and splitting a
+        // CRLF file on ";\n" matches nothing, which silently skips the entire schema.
+        $sql = str_replace(["\r\n", "\r"], "\n", file_get_contents(__DIR__ . '/schema.sql'));
+        foreach (explode(";\n", $sql) as $stmt) {
+            // Drop the leading comment lines so a commented statement still runs.
+            $lines = [];
+            foreach (explode("\n", $stmt) as $ln) {
+                if (!$lines && (trim($ln) === '' || str_starts_with(trim($ln), '--'))) continue;
+                $lines[] = $ln;
+            }
+            $stmt = trim(implode("\n", $lines), " \t\n;");
+            if ($stmt === '') continue;
+            try {
+                $pdo->exec($stmt);
+            } catch (PDOException $pe) {
+                // Re-running the installer re-adds the named foreign keys; that is harmless.
+                if (!preg_match('/Duplicate (key|foreign key constraint) name|errno: 121/i', $pe->getMessage())) {
+                    throw $pe;
+                }
+            }
         }
         $log[] = 'Tables created.';
 
