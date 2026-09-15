@@ -4,13 +4,15 @@ require_can('can_raise_tickets', 'ticket creation');
 require_once __DIR__ . '/includes/upload.php';
 
 $errors      = [];
-$departments = all_departments();
+/* The department is fixed to the requester's own; it is never taken from the form. */
+$myDept = q('SELECT d.id, d.name FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE u.id = ?',
+            [user()['id']])->fetch();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $subject  = post('subject');
     $body     = post('body');
-    $deptId   = (int) post('department_id');
+    $deptId   = (int) ($myDept['id'] ?? 0);
 
     if (mb_strlen($subject) < 5)             $errors[] = 'Subject must be at least 5 characters.';
     if (mb_strlen($body) < 10)               $errors[] = 'Please describe the issue in at least 10 characters.';
@@ -55,12 +57,8 @@ require __DIR__ . '/layout/header.php';
 
       <div>
         <label class="mb-1.5 block text-[13px] text-zinc-600">Department</label>
-        <select name="department_id" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
-          <option value="">— Not sure —</option>
-          <?php foreach ($departments as $d): ?>
-            <option value="<?= $d['id'] ?>" <?= (int)($_POST['department_id'] ?? 0) === (int)$d['id'] ? 'selected' : '' ?>><?= e($d['name']) ?></option>
-          <?php endforeach; ?>
-        </select>
+        <input type="text" value="<?= e($myDept['name'] ?? 'Not set') ?>" disabled
+               class="w-full cursor-not-allowed rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2 text-[13px] text-zinc-500">
         <p class="mt-1.5 text-[11px] text-zinc-500">Priority is set by the Super Admin when the ticket is assigned.</p>
       </div>
 

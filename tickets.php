@@ -259,6 +259,10 @@ require __DIR__ . '/layout/header.php';
                     Raise again
                   </button>
 
+                <?php elseif ($t['status'] === 'closed'): ?>
+                  <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" title="View ticket"
+                     class="inline-flex items-center rounded-md bg-zinc-100 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition hover:bg-zinc-200">Closed</a>
+
                 <?php else: ?>
                   <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="text-[11px] text-brand-600 hover:text-brand-700">Open →</a>
                 <?php endif; ?>
