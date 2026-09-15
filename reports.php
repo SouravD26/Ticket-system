@@ -73,31 +73,30 @@ $totals = [
     'people' => count($rows),
 ];
 
-$detail = [];
-$person = null;
+/* Task entries are only listed for the one person picked from the table, 15 per page. */
+const REPORT_PER_PAGE = 15;
+$detail     = [];
+$person     = null;
+$page       = max(1, (int) get_('page', '1'));
+$pages      = 1;
+$detailTotal = 0;
 if ($who) {
     $person = q('SELECT u.*, d.name AS dept_name FROM users u
                  LEFT JOIN departments d ON d.id = u.department_id
                  WHERE u.id = ?', [$who])->fetch();
     if ($person) {
+        $detailTotal = (int) q('SELECT COUNT(*) FROM daily_tasks WHERE user_id = ? AND task_date BETWEEN ? AND ?',
+                               [$who, $from, $to])->fetchColumn();
+        $pages  = max(1, (int) ceil($detailTotal / REPORT_PER_PAGE));
+        $page   = min($page, $pages);
         $detail = q('SELECT * FROM daily_tasks WHERE user_id = ? AND task_date BETWEEN ? AND ?
-                     ORDER BY task_date DESC, id DESC', [$who, $from, $to])->fetchAll();
+                     ORDER BY task_date DESC, id DESC
+                     LIMIT ' . REPORT_PER_PAGE . ' OFFSET ' . (($page - 1) * REPORT_PER_PAGE),
+                    [$who, $from, $to])->fetchAll();
     }
 }
 
-/* Without a person picked, show every entry from the selected department instead. */
-$allTasks = [];
-if (!$who) {
-    $allTasks = q('SELECT dt.*, u.name AS user_name, u.role, d.name AS dept_name
-                   FROM daily_tasks dt
-                   JOIN users u ON u.id = dt.user_id
-                   LEFT JOIN departments d ON d.id = u.department_id
-                   WHERE dt.task_date BETWEEN ? AND ? AND u.role IN ("employee","it")' . $deptWhere . '
-                   ORDER BY dt.task_date DESC, d.name, u.name, dt.id DESC
-                   LIMIT 300',
-                  array_merge([$from, $to], $deptArgs))->fetchAll();
-}
-
+// Any filter change starts over at page 1; only the pager passes 'page' explicitly.
 $qs = fn(array $over = []) => http_build_query(array_merge(
     ['from' => $from, 'to' => $to, 'user' => $who ?: '', 'dept' => $dept ?: ''], $over));
 
@@ -205,7 +204,9 @@ require __DIR__ . '/layout/header.php';
         <?php foreach ($rows as $r): ?>
           <tr class="<?= $who === (int)$r['id'] ? 'bg-brand-50' : 'hover:bg-zinc-50' ?>">
             <td class="px-3 py-2">
-              <a href="<?= url('reports.php?' . $qs(['user' => $r['id']])) ?>" class="flex items-center gap-3">
+              <?php $isOpen = $who === (int) $r['id']; // tapping the open person again closes their report ?>
+              <a href="<?= url('reports.php?' . $qs(['user' => $isOpen ? '' : $r['id']])) ?>"
+                 title="<?= $isOpen ? 'Close report' : 'Open report' ?>" class="flex items-center gap-3">
                 <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-900"><?= e(initials($r['name'])) ?></span>
                 <span class="min-w-0">
                   <span class="block truncate font-medium text-zinc-900"><?= e($r['name']) ?></span>
@@ -260,43 +261,27 @@ require __DIR__ . '/layout/header.php';
         <li class="py-8 text-center text-[13px] text-zinc-500">No task entries in this range.</li>
       <?php endif; ?>
     </ul>
-  </div>
-<?php endif; ?>
-<?php if (!$who): ?>
-  <div class="mt-4 rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
-    <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h2 class="text-[13px] font-semibold text-zinc-900">
-        All task entries<?= $dept ? ' — ' . e($departments[array_search($dept, array_column($departments, 'id'))]['name'] ?? '') : '' ?>
-      </h2>
-      <p class="text-[11px] text-zinc-500">
-        <?= count($allTasks) ?> entr<?= count($allTasks) === 1 ? 'y' : 'ies' ?>
-        <?= count($allTasks) === 300 ? '(first 300)' : '' ?> ·
-        <?= e($rangeLabel) ?>
-      </p>
-    </div>
-    <ul class="mt-3 divide-y divide-zinc-100">
-      <?php foreach ($allTasks as $t): ?>
-        <li class="flex flex-wrap items-start gap-3 py-3">
-          <span class="w-20 shrink-0 text-[11px] text-zinc-500"><?= date('M j', strtotime($t['task_date'])) ?></span>
-          <div class="min-w-0 flex-1">
-            <p class="text-[13px] text-zinc-900"><?= e($t['title']) ?></p>
-            <?php if ($t['description']): ?>
-              <p class="mt-0.5 whitespace-pre-line text-[11px] text-zinc-500"><?= e($t['description']) ?></p>
+
+    <?php if ($detailTotal): ?>
+      <div class="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200 pt-3">
+        <p class="text-[11px] text-zinc-500">
+          Showing <?= ($page - 1) * REPORT_PER_PAGE + 1 ?>–<?= min($page * REPORT_PER_PAGE, $detailTotal) ?>
+          of <?= $detailTotal ?> entr<?= $detailTotal === 1 ? 'y' : 'ies' ?> · Page <?= $page ?> of <?= $pages ?>
+        </p>
+        <?php if ($pages > 1): ?>
+          <div class="flex gap-2">
+            <?php if ($page > 1): ?>
+              <a href="<?= url('reports.php?' . $qs(['page' => $page - 1])) ?>" class="rounded-md border border-zinc-200 px-3 py-1.5 text-[11px] text-zinc-600 hover:bg-zinc-100">← Previous</a>
             <?php endif; ?>
-            <p class="mt-1 text-[11px] text-zinc-500">
-              <a href="<?= url('reports.php?' . $qs(['user' => $t['user_id']])) ?>" class="font-medium text-brand-600 hover:text-brand-700"><?= e($t['user_name']) ?></a>
-              · <?= e($t['dept_name'] ?? 'No department') ?>
-              · <?= e(ROLE_LABELS[$t['role']] ?? $t['role']) ?>
-            </p>
+            <?php if ($page < $pages): ?>
+              <a href="<?= url('reports.php?' . $qs(['page' => $page + 1])) ?>" class="rounded-md border border-zinc-200 px-3 py-1.5 text-[11px] text-zinc-600 hover:bg-zinc-100">Next →</a>
+            <?php endif; ?>
           </div>
-          <span class="shrink-0 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-zinc-600"><?= e(TASK_STATUSES[$t['status']]) ?></span>
-          <span class="shrink-0 text-[11px] text-zinc-500"><?= (float)$t['hours'] ?>h</span>
-        </li>
-      <?php endforeach; ?>
-      <?php if (!$allTasks): ?>
-        <li class="py-8 text-center text-[13px] text-zinc-500">No task entries in this range.</li>
-      <?php endif; ?>
-    </ul>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
   </div>
+<?php elseif ($rows): ?>
+  <p class="mt-4 text-center text-[12px] text-zinc-500">Click an employee above to open their task report.</p>
 <?php endif; ?>
 <?php require __DIR__ . '/layout/footer.php'; ?>
