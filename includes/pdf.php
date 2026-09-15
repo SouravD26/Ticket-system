@@ -82,21 +82,31 @@ final class SimplePdf
         $this->text(self::MARGIN, $this->y - 12, $this->title, 15, true);
         $this->y -= 30;
         $this->text(self::MARGIN, $this->y, $this->subtitle, 9, false, '0.35');
-        $this->y -= 18;
+        $this->y -= 14;
         $this->tableHead();
     }
 
+    /*
+     * Layout rule for the table: $this->y is always the TOP edge of the next band.
+     * Each band draws its background and text inside [y - height, y], then moves y
+     * to its bottom edge, so nothing can spill into the band above or below.
+     */
+    private const LINE = 11.0;     // baseline-to-baseline for wrapped cell text
+    private const PAD  = 6.0;      // space above the first and below the last line
+    private const ASC  = 7.0;      // cap height of 8.5pt Helvetica, rounded up
+    private const DESC = 2.5;      // descender of 8.5pt Helvetica, rounded up
+
     private function tableHead(): void
     {
-        $this->rect(self::MARGIN, $this->y - 4, self::W - 2 * self::MARGIN, 18, '0.93');
+        $h = 20.0;
+        $this->rect(self::MARGIN, $this->y - $h, self::W - 2 * self::MARGIN, $h, '0.93');
         $x = self::MARGIN + 4;
         foreach ($this->cols as [$label, $w, $align]) {
-            $this->text($x, $this->y + 2, $label, 8, true, '0.25');
+            $this->text($x, $this->y - 13, $label, 8, true, '0.25');
             $x += $w;
         }
-        $this->y -= 10;
+        $this->y -= $h;
         $this->line(self::MARGIN, $this->y, self::W - self::MARGIN, $this->y, '0.75');
-        $this->y -= 4;
     }
 
     /** Wrap one cell's text to its column width. */
@@ -127,40 +137,42 @@ final class SimplePdf
             $wrapped[$i] = self::wrap((string) ($cells[$i] ?? ''), $w, $size);
             $maxLines = max($maxLines, count($wrapped[$i]));
         }
-        $height = $maxLines * 11 + 6;
+        $height = self::PAD + self::ASC + ($maxLines - 1) * self::LINE + self::DESC + self::PAD;
 
-        if ($this->y - $height < self::MARGIN + 24) $this->newPage();
+        if ($this->y - $height < self::MARGIN + 14) $this->newPage();
 
-        if ($zebra) $this->rect(self::MARGIN, $this->y - $height + 8, self::W - 2 * self::MARGIN, $height, '0.975');
+        $top = $this->y;
+        if ($zebra) $this->rect(self::MARGIN, $top - $height, self::W - 2 * self::MARGIN, $height, '0.975');
 
         $x = self::MARGIN + 4;
         foreach ($this->cols as $i => [$label, $w, $align]) {
-            $ty = $this->y;
+            $ty = $top - self::PAD - self::ASC;
             foreach ($wrapped[$i] as $ln) {
                 $tx = $x;
                 if ($align === 'r') $tx = $x + $w - 8 - self::textWidth($ln, $size);
                 $this->text($tx, $ty, $ln, $size, false, '0.15');
-                $ty -= 11;
+                $ty -= self::LINE;
             }
             $x += $w;
         }
-        $this->y -= $height;
-        $this->line(self::MARGIN, $this->y + 6, self::W - self::MARGIN, $this->y + 6, '0.9');
+        $this->y = $top - $height;
+        $this->line(self::MARGIN, $this->y, self::W - self::MARGIN, $this->y, '0.9');
     }
 
     public function totals(array $cells): void
     {
-        if ($this->y - 26 < self::MARGIN + 24) $this->newPage();
-        $this->y -= 4;
-        $this->rect(self::MARGIN, $this->y - 6, self::W - 2 * self::MARGIN, 20, '0.93');
+        $h = 22.0;
+        if ($this->y - 6 - $h < self::MARGIN + 14) $this->newPage();
+        $this->y -= 6;
+        $this->rect(self::MARGIN, $this->y - $h, self::W - 2 * self::MARGIN, $h, '0.93');
         $x = self::MARGIN + 4;
         foreach ($this->cols as $i => [$label, $w, $align]) {
             $v = (string) ($cells[$i] ?? '');
             $tx = $align === 'r' ? $x + $w - 8 - self::textWidth(self::enc($v), 9) : $x;
-            $this->text($tx, $this->y, $v, 9, true, '0');
+            $this->text($tx, $this->y - 14.5, $v, 9, true, '0');
             $x += $w;
         }
-        $this->y -= 24;
+        $this->y -= $h;
     }
 
     private function footers(): void

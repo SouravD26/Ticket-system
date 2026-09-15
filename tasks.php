@@ -5,8 +5,8 @@
  *
  * The page works around one selected date. Quick Add drops a task straight into the
  * day's list as a draft (held in the browser so it survives a refresh), and
- * "Submit All Tasks" writes the drafts to the database in one go. Anything already
- * saved is edited in place from the same list.
+ * "Submit All Tasks" writes the drafts to the database in one go. Once submitted, a task
+ * is final: it cannot be edited, duplicated, deleted or have its status changed.
  */
 require_once __DIR__ . '/includes/functions.php';
 // The Super Admin keeps no sheet of his own — he reads everyone else's.
@@ -26,42 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = post('action');
     $back   = 'tasks.php?day=' . urlencode(post('day') ?: $day);
 
-    if ($action === 'delete') {
-        q('DELETE FROM daily_tasks WHERE id = ? AND user_id = ?', [(int) post('id'), $me['id']]);
-        flash('Task removed.');
-        redirect($back);
-    }
-
-    /* Status changed straight from the row, without opening the editor. */
-    if ($action === 'status') {
-        $status = post('status');
-        if (isset(TASK_STATUSES[$status])) {
-            q('UPDATE daily_tasks SET status = ? WHERE id = ? AND user_id = ?',
-              [$status, (int) post('id'), $me['id']]);
-            flash('Status updated.');
-        }
-        redirect($back);
-    }
-
-    /* Inline edit of a task that is already saved. */
-    if ($action === 'edit') {
-        $title  = post('title');
-        $status = post('status');
-        $date   = post('task_date') ?: $day;
-
-        if (mb_strlen($title) < 3) {
-            flash('Give the task a title of at least 3 characters.', 'error');
-        } elseif (!isset(TASK_STATUSES[$status])) {
-            flash('Invalid status.', 'error');
-        } elseif (!strtotime($date) || $date > date('Y-m-d')) {
-            flash('Pick a valid date — future dates are not allowed.', 'error');
-        } else {
-            q('UPDATE daily_tasks SET title = ?, description = ?, hours = ?, status = ?, category = ?, task_date = ?
-               WHERE id = ? AND user_id = ?',
-              [$title, post('description') ?: null, task_hours(post('hours', '0')), $status,
-               post('category') ?: null, $date, (int) post('id'), $me['id']]);
-            flash('Task updated.');
-        }
+    /* Submitted tasks are final: drafts can be changed freely, saved rows cannot be edited or deleted. */
+    if (in_array($action, ['delete', 'status', 'edit'], true)) {
+        flash('A submitted task is locked and cannot be changed or deleted.', 'error');
         redirect($back);
     }
 
@@ -174,42 +141,60 @@ function status_dot(string $s): string
 <!-- 2. QUICK ADD -->
 <div class="mt-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
   <h3 class="text-[13px] font-semibold text-zinc-900">Quick Add Task</h3>
-  <label for="qaTitle" class="mt-3 block text-[11px] text-zinc-500">What did you work on?</label>
+  <label class="mt-3 block text-[11px] text-zinc-500">What did you work on?</label>
 
-  <div class="mt-1.5 flex flex-wrap items-center gap-2">
-    <input id="qaTitle" type="text" placeholder="e.g. Fixed login issue" autocomplete="off"
-           class="min-w-[16rem] flex-1 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
+  <!-- one line per task; "+ Add another task" clones the template below -->
+  <div id="qaLines" class="divide-y divide-zinc-100"></div>
 
-    <!-- 9. HOURS -->
-    <select id="qaHours" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none focus:border-brand-400">
-      <?php foreach (TASK_HOUR_STEPS as $h): ?>
-        <option value="<?= $h ?>" <?= $h === '0.5' ? 'selected' : '' ?>><?= $h ?> hr</option>
-      <?php endforeach; ?>
-      <option value="custom">Custom…</option>
-    </select>
-    <input id="qaHoursCustom" type="number" step="0.25" min="0" max="24" placeholder="hrs"
-           class="hidden w-24 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
+  <template id="qaLineTpl">
+    <div data-qa-line class="py-2 first:pt-1.5">
+      <div class="flex flex-wrap items-center gap-2">
+        <input data-qa="title" type="text" placeholder="e.g. Fixed login issue" autocomplete="off"
+               class="min-w-[16rem] flex-1 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
 
-    <!-- 10. STATUS -->
-    <select id="qaStatus" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none focus:border-brand-400">
-      <?php foreach (TASK_STATUSES as $k => $l): ?>
-        <option value="<?= $k ?>"><?= e($l) ?></option>
-      <?php endforeach; ?>
-    </select>
+        <!-- 9. HOURS -->
+        <select data-qa="hours" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none focus:border-brand-400">
+          <?php foreach (TASK_HOUR_STEPS as $h): ?>
+            <option value="<?= $h ?>" <?= $h === '0.5' ? 'selected' : '' ?>><?= $h ?> hr</option>
+          <?php endforeach; ?>
+          <option value="custom">Custom…</option>
+        </select>
+        <input data-qa="custom" type="number" step="0.25" min="0" max="24" placeholder="hrs"
+               class="hidden w-24 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
 
+        <!-- 10. STATUS -->
+        <select data-qa="status" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none focus:border-brand-400">
+          <?php foreach (TASK_STATUSES as $k => $l): ?>
+            <option value="<?= $k ?>"><?= e($l) ?></option>
+          <?php endforeach; ?>
+        </select>
+
+        <button type="button" data-qa-remove title="Remove this line"
+                class="rounded-md p-2 text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- 7. details stay optional, behind a toggle -->
+      <button type="button" data-qa-more class="mt-2 text-[11px] font-medium text-brand-600 hover:text-brand-700">+ Add details</button>
+      <div data-qa-morebox class="mt-2 hidden">
+        <textarea data-qa="details" rows="3" placeholder="Anything worth recording (optional)"
+                  class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
+        <input data-qa="category" type="text" placeholder="Category (optional)"
+               class="mt-2 w-56 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
+      </div>
+    </div>
+  </template>
+
+  <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3">
+    <button type="button" id="qaAnother"
+            class="rounded-md border border-dashed border-zinc-300 px-3 py-2 text-[13px] font-medium text-zinc-600 transition hover:border-brand-400 hover:text-brand-600">
+      + Add another task
+    </button>
     <button type="button" id="qaAdd"
             class="rounded-md bg-brand-500 px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-brand-600">
       Add Task
     </button>
-  </div>
-
-  <!-- 7. details stay optional, behind a toggle -->
-  <button type="button" id="qaMore" class="mt-3 text-[11px] font-medium text-brand-600 hover:text-brand-700">+ Add details</button>
-  <div id="qaMoreBox" class="mt-2 hidden">
-    <textarea id="qaDetails" rows="3" placeholder="Anything worth recording (optional)"
-              class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25"></textarea>
-    <input id="qaCategory" type="text" placeholder="Category (optional)"
-           class="mt-2 w-56 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
   </div>
 </div>
 
@@ -317,65 +302,15 @@ function status_dot(string $s): string
 
           <span class="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700"><?= (float) $t['hours'] ?> hr</span>
 
-          <span class="shrink-0">
-            <select data-status-select
-                    class="rounded-md border px-2 py-1.5 text-[11px] font-medium outline-none focus:border-brand-400 <?= $st['chip'] ?>">
-              <?php foreach (TASK_STATUSES as $k => $l): ?>
-                <option value="<?= $k ?>" <?= $t['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
-              <?php endforeach; ?>
-            </select>
+          <span title="Status is locked once submitted"
+                class="shrink-0 rounded-md border px-2 py-1.5 text-[11px] font-medium <?= $st['chip'] ?>">
+            <?= e(TASK_STATUSES[$t['status']] ?? $t['status']) ?>
           </span>
 
-          <div class="relative shrink-0">
-            <button type="button" data-menu-btn title="More"
-                    class="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700">
-              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
-            </button>
-            <div data-menu class="absolute right-0 z-30 mt-1 hidden w-40 rounded-md border border-zinc-200 bg-white py-1 shadow-lg">
-              <button type="button" data-act="edit"    class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Edit</button>
-              <button type="button" data-act="details" class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Add Details</button>
-              <button type="button" data-act="dupe"    class="block w-full px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-50">Duplicate</button>
-              <button type="button" data-act="del"     class="block w-full px-3 py-2 text-left text-[11px] text-rose-700 hover:bg-rose-50">Delete</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 6. INLINE EDITING -->
-        <div data-edit class="hidden border-t border-zinc-200 bg-zinc-50/70 px-3 py-2">
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div class="sm:col-span-2">
-              <label class="mb-1 block text-[11px] text-zinc-500">Task</label>
-              <input data-f="title" value="<?= e($t['title']) ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
-            </div>
-            <div class="sm:col-span-2">
-              <label class="mb-1 block text-[11px] text-zinc-500">Details</label>
-              <textarea data-f="description" rows="2" class="w-full resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400"><?= e($t['description'] ?? '') ?></textarea>
-            </div>
-            <div>
-              <label class="mb-1 block text-[11px] text-zinc-500">Category</label>
-              <input data-f="category" value="<?= e($t['category'] ?? '') ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
-            </div>
-            <div>
-              <label class="mb-1 block text-[11px] text-zinc-500">Date</label>
-              <input data-f="task_date" type="date" max="<?= date('Y-m-d') ?>" value="<?= e($t['task_date']) ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
-            </div>
-            <div>
-              <label class="mb-1 block text-[11px] text-zinc-500">Hours</label>
-              <input data-f="hours" type="number" step="0.25" min="0" max="24" value="<?= (float) $t['hours'] ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
-            </div>
-            <div>
-              <label class="mb-1 block text-[11px] text-zinc-500">Status</label>
-              <select data-f="status" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
-                <?php foreach (TASK_STATUSES as $k => $l): ?>
-                  <option value="<?= $k ?>" <?= $t['status'] === $k ? 'selected' : '' ?>><?= e($l) ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-          </div>
-          <div class="mt-3 flex gap-2">
-            <button type="button" data-act="save"   class="rounded-md bg-brand-500 px-4 py-2 text-[11px] font-semibold text-white hover:bg-brand-600">Save</button>
-            <button type="button" data-act="cancel" class="rounded-md border border-zinc-200 px-4 py-2 text-[11px] text-zinc-600 hover:bg-zinc-100">Cancel</button>
-          </div>
+          <!-- submitted = final: no edit, details, duplicate or delete -->
+          <span title="Submitted tasks are locked" class="shrink-0 p-1.5 text-zinc-400">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M6 11h12a1 1 0 011 1v8a1 1 0 01-1 1H6a1 1 0 01-1-1v-8a1 1 0 011-1z"/></svg>
+          </span>
         </div>
       </li>
     <?php endforeach; ?>
@@ -400,20 +335,6 @@ function status_dot(string $s): string
       Submit All Tasks
     </button>
   </div>
-</form>
-
-<!-- row actions that need the server; kept outside the draft form so they post alone -->
-<form method="post" id="rowForm" class="hidden">
-  <?= csrf_field() ?>
-  <input type="hidden" name="day" value="<?= e($day) ?>">
-  <input type="hidden" name="action"      id="rf_action">
-  <input type="hidden" name="id"          id="rf_id">
-  <input type="hidden" name="title"       id="rf_title">
-  <input type="hidden" name="description" id="rf_description">
-  <input type="hidden" name="category"    id="rf_category">
-  <input type="hidden" name="hours"       id="rf_hours">
-  <input type="hidden" name="status"      id="rf_status">
-  <input type="hidden" name="task_date"   id="rf_task_date">
 </form>
 
 <!-- 13. HISTORY & EXPORT — deliberately secondary -->
@@ -481,7 +402,6 @@ function status_dot(string $s): string
   var fields  = document.getElementById('draftFields');
   var submit  = document.getElementById('submitAll');
   var note    = document.getElementById('draftNote');
-  var rowForm = document.getElementById('rowForm');
 
   var drafts = [];
   try { drafts = JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch (e) { drafts = []; }
@@ -609,74 +529,96 @@ function status_dot(string $s): string
   document.getElementById('sortBy').addEventListener('change', sortRows);
 
   /* ---------- 2 + 9: quick add ---------- */
-  var qaTitle    = document.getElementById('qaTitle'),
-      qaHours    = document.getElementById('qaHours'),
-      qaCustom   = document.getElementById('qaHoursCustom'),
-      qaStatus   = document.getElementById('qaStatus'),
-      qaDetails  = document.getElementById('qaDetails'),
-      qaCategory = document.getElementById('qaCategory'),
-      qaMoreBox  = document.getElementById('qaMoreBox');
+  var qaLines = document.getElementById('qaLines'),
+      qaTpl   = document.getElementById('qaLineTpl');
 
-  qaHours.addEventListener('change', function () {
-    var custom = qaHours.value === 'custom';
-    qaCustom.classList.toggle('hidden', !custom);
-    if (custom) qaCustom.focus();
+  function qa(line, name) { return line.querySelector('[data-qa="' + name + '"]'); }
+
+  /* Only one line left? Hide its remove button so the form never empties. */
+  function syncRemove() {
+    var lines = qaLines.querySelectorAll('[data-qa-line]');
+    lines.forEach(function (l) { l.querySelector('[data-qa-remove]').hidden = lines.length === 1; });
+  }
+
+  function addLine(focus) {
+    var line = qaTpl.content.firstElementChild.cloneNode(true);
+    qaLines.appendChild(line);
+    syncRemove();
+    if (focus) qa(line, 'title').focus();
+    return line;
+  }
+
+  qaLines.addEventListener('change', function (ev) {
+    if (!ev.target.matches('[data-qa="hours"]')) return;
+    var custom = qa(ev.target.closest('[data-qa-line]'), 'custom');
+    custom.classList.toggle('hidden', ev.target.value !== 'custom');
+    if (ev.target.value === 'custom') custom.focus();
   });
 
-  document.getElementById('qaMore').addEventListener('click', function () {
-    qaMoreBox.classList.toggle('hidden');
-    if (!qaMoreBox.classList.contains('hidden')) qaDetails.focus();
+  qaLines.addEventListener('click', function (ev) {
+    var line = ev.target.closest('[data-qa-line]');
+    if (!line) return;
+    if (ev.target.closest('[data-qa-remove]')) {
+      line.remove(); syncRemove();
+    } else if (ev.target.closest('[data-qa-more]')) {
+      var box = line.querySelector('[data-qa-morebox]');
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) qa(line, 'details').focus();
+    }
   });
 
-  function hoursValue() {
-    var v = parseFloat(qaHours.value === 'custom' ? qaCustom.value : qaHours.value);
+  qaLines.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter' && ev.target.matches('[data-qa="title"]')) { ev.preventDefault(); addTasks(); }
+  });
+
+  function hoursValue(line) {
+    var sel = qa(line, 'hours');
+    var v = parseFloat(sel.value === 'custom' ? qa(line, 'custom').value : sel.value);
     return isNaN(v) || v < 0 ? 0 : Math.min(24, v);
   }
 
-  function addTask() {
-    var title = qaTitle.value.trim();
-    if (title.length < 3) { qaTitle.classList.add('border-rose-400'); qaTitle.focus(); return; }
-    qaTitle.classList.remove('border-rose-400');
-    drafts.push({
-      title: title,
-      description: (qaDetails.value || '').trim(),
-      category: (qaCategory.value || '').trim(),
-      hours: hoursValue(),
-      status: qaStatus.value,
-      task_date: DAY
+  /* Every line with a title becomes a draft; blank lines are ignored, short titles block the whole add. */
+  function addTasks() {
+    var lines = [].slice.call(qaLines.querySelectorAll('[data-qa-line]'));
+    var bad = null, filled = [];
+    lines.forEach(function (line) {
+      var t = qa(line, 'title'), title = t.value.trim();
+      t.classList.remove('border-rose-400');
+      if (title === '') return;
+      if (title.length < 3) { t.classList.add('border-rose-400'); bad = bad || t; return; }
+      filled.push(line);
+    });
+    if (bad) { bad.focus(); return; }
+    if (!filled.length) { var first = qa(lines[0], 'title'); first.classList.add('border-rose-400'); first.focus(); return; }
+
+    filled.forEach(function (line) {
+      drafts.push({
+        title: qa(line, 'title').value.trim(),
+        description: qa(line, 'details').value.trim(),
+        category: qa(line, 'category').value.trim(),
+        hours: hoursValue(line),
+        status: qa(line, 'status').value,
+        task_date: DAY
+      });
     });
     persist();
     renderDrafts();
-    qaTitle.value = ''; qaDetails.value = ''; qaCategory.value = '';
-    qaMoreBox.classList.add('hidden');
-    qaTitle.focus();
+    qaLines.innerHTML = '';
+    addLine(true);
   }
 
-  document.getElementById('qaAdd').addEventListener('click', addTask);
-  qaTitle.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter') { ev.preventDefault(); addTask(); }
-  });
+  document.getElementById('qaAdd').addEventListener('click', addTasks);
+  document.getElementById('qaAnother').addEventListener('click', function () { addLine(true); });
+  addLine(false);
 
-  function focusAdd() { qaTitle.focus(); qaTitle.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  function focusAdd() {
+    var t = qa(qaLines.querySelector('[data-qa-line]'), 'title');
+    t.focus(); t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
   document.getElementById('jumpAdd').addEventListener('click', focusAdd);
   document.getElementById('emptyAdd').addEventListener('click', focusAdd);
 
-  /* ---------- saved rows go through the hidden form ---------- */
-  function send(action, row) {
-    document.getElementById('rf_action').value = action;
-    document.getElementById('rf_id').value = row.dataset.id || '';
-    if (action === 'edit') {
-      ['title', 'description', 'category', 'hours', 'status', 'task_date'].forEach(function (f) {
-        var el = row.querySelector('[data-f="' + f + '"]');
-        document.getElementById('rf_' + f).value = el ? el.value : '';
-      });
-    }
-    if (action === 'status') {
-      document.getElementById('rf_status').value = row.querySelector('[data-status-select]').value;
-    }
-    rowForm.submit();
-  }
-
+  /* ---------- draft row actions (submitted rows have none) ---------- */
   document.addEventListener('click', function (ev) {
     var btn = ev.target.closest('[data-menu-btn]');
     document.querySelectorAll('[data-menu]').forEach(function (m) {
@@ -687,8 +629,8 @@ function status_dot(string $s): string
     var act = ev.target.closest('[data-act]');
     if (!act) return;
     var row = act.closest('[data-row]');
+    if (!row || row.dataset.draft !== '1') return;
     var kind = act.dataset.act;
-    var isDraft = row.dataset.draft === '1';
     var idx = parseInt(row.dataset.index, 10);
 
     if (kind === 'edit' || kind === 'details') {
@@ -703,13 +645,7 @@ function status_dot(string $s): string
     if (kind === 'cancel') { row.querySelector('[data-edit]').classList.add('hidden'); return; }
 
     if (kind === 'dupe') {
-      var src = isDraft ? drafts[idx] : {
-        title:       row.querySelector('[data-f="title"]').value,
-        description: row.querySelector('[data-f="description"]').value,
-        category:    row.querySelector('[data-f="category"]').value,
-        hours:       row.querySelector('[data-f="hours"]').value,
-        status:      row.querySelector('[data-f="status"]').value
-      };
+      var src = drafts[idx];
       drafts.push({
         title: src.title, description: src.description || '', category: src.category || '',
         hours: parseFloat(src.hours) || 0, status: src.status, task_date: DAY
@@ -719,13 +655,11 @@ function status_dot(string $s): string
     }
 
     if (kind === 'del') {
-      if (isDraft) { drafts.splice(idx, 1); persist(); renderDrafts(); return; }
-      if (confirm('Delete this task?')) send('delete', row);
+      drafts.splice(idx, 1); persist(); renderDrafts();
       return;
     }
 
     if (kind === 'save') {
-      if (!isDraft) { send('edit', row); return; }
       var d = drafts[idx];
       var t = row.querySelector('[data-f="title"]').value.trim();
       if (t.length < 3) { row.querySelector('[data-f="title"]').focus(); return; }
@@ -740,9 +674,7 @@ function status_dot(string $s): string
   });
 
   list.addEventListener('change', function (ev) {
-    if (ev.target.matches('[data-status-select]')) {
-      send('status', ev.target.closest('[data-row]'));
-    } else if (ev.target.matches('[data-draft-status]')) {
+    if (ev.target.matches('[data-draft-status]')) {
       var row = ev.target.closest('[data-row]');
       drafts[parseInt(row.dataset.index, 10)].status = ev.target.value;
       persist(); renderDrafts();
