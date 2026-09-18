@@ -10,10 +10,15 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
-// Folder the app lives in, relative to the domain root.
+// Folder the app lives in, relative to the domain root (auto-detected).
 // XAMPP: http://localhost/ticket-system/  -> '/ticket-system'
-// cPanel document root                     -> ''
-define('BASE_URL', '/ticket-system');
+// helpdesk.sanmarg.in (app at doc root)   -> ''
+$__appDir  = str_replace('\\', '/', realpath(__DIR__ . '/..'));
+$__docRoot = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: '');
+$__base    = ($__docRoot !== '' && stripos($__appDir, $__docRoot) === 0)
+    ? substr($__appDir, strlen($__docRoot)) : '';
+define('BASE_URL', rtrim($__base, '/'));
+unset($__appDir, $__docRoot, $__base);
 
 define('UPLOAD_DIR', __DIR__ . '/../uploads');
 define('MAX_UPLOAD', 5 * 1024 * 1024); // 5 MB
