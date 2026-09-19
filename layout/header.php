@@ -1,13 +1,21 @@
 <?php
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/attendance.php';
 $me      = user();
 $current = basename($_SERVER['PHP_SELF']);
 $pageTitle = $pageTitle ?? APP_NAME;
 
 $nav = [
-    ['dashboard.php', 'Dashboard', 'M3 12l9-9 9 9M5 10v10h14V10'],
+    [is_hod() ? 'hod-dashboard.php' : 'dashboard.php', 'Dashboard', 'M3 12l9-9 9 9M5 10v10h14V10'],
 ];
-if (!is_admin()) {
+if (can_punch()) {
+    $nav[] = ['attendance.php', 'Punch In / Out', 'M3 9a2 2 0 012-2h1l2-3h8l2 3h1a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9zM12 17a4 4 0 100-8 4 4 0 000 8z'];
+    $nav[] = ['my-attendance.php', 'My Attendance', 'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z'];
+    $nav[] = ['leave.php', 'Apply Leave', 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'];
+}
+if (can_view_all_tasks()) {
+    $nav[] = ['task-view.php', 'Employee Daily Tasks', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'];
+}
+if (!is_admin() && !in_array(role(), ['face_operator', 'hod'], true)) {
     $nav[] = ['tickets.php', is_it() ? 'Assigned Tickets' : 'Tickets', 'M4 6h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4V6z'];
 }
 if (can_raise_tickets()) {
@@ -25,12 +33,22 @@ if (can_view_reports()) {
 }
 if (is_super()) {
     $nav[] = ['users.php',       'Users',       'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 100-8 4 4 0 000 8z'];
+    $nav[] = ['system-accounts.php', 'System Accounts', 'M12 3l7 4v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V7l7-4zM9.5 12l2 2 3.5-4'];
     $nav[] = ['departments.php', 'Departments', 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6'];
 }
 if (is_super()) {
     // Sits directly above Profile, carrying the count of what HR is waiting on.
     $nav[] = ['hr-requests.php', 'HR Requests', 'M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', pending_people_count()];
 }
+$hrmsNav = [];
+if (can_run_kiosk()) $hrmsNav[] = ['face.php', 'Face Attendance', 'M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 005 0'];
+if (att_can('view_attendance')) $hrmsNav[] = ['hrms-attendance.php', 'Attendance', 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'];
+if (att_can('manual_attendance')) $hrmsNav[] = ['hrms-manual.php', 'Manual Attendance', 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.4-9.6a2 2 0 112.8 2.8L11.8 15H9v-2.8l8.6-8.6z'];
+if (att_can('manage_employees')) $hrmsNav[] = ['hrms-employees.php', 'Employees', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 100-8 4 4 0 000 8z'];
+if (att_can('comp_off') || att_can('od_management') || att_can('leave_approval')) $hrmsNav[] = ['hrms-leave.php', 'Leave, Comp-off & OD', 'M5 13l4 4L19 7'];
+if (att_can('export_reports')) $hrmsNav[] = ['hrms-export.php', 'Excel Reports', 'M12 10v6m0 0l-3-3m3 3l3-3M6 20h12a2 2 0 002-2V8l-6-6H6a2 2 0 00-2 2v14a2 2 0 002 2z'];
+if (att_can('manage_companies') || att_can('manage_shifts') || att_can('manage_locations') || att_can('gps_restriction') || att_can('leave_approval'))
+    $hrmsNav[] = ['hrms-settings.php', 'HRMS Settings', 'M10.3 4.3a1.7 1.7 0 013.4 0 1.7 1.7 0 002.6 1.1 1.7 1.7 0 012.4 2.4 1.7 1.7 0 001 2.6 1.7 1.7 0 010 3.4 1.7 1.7 0 00-1 2.6 1.7 1.7 0 01-2.4 2.4 1.7 1.7 0 00-2.6 1 1.7 1.7 0 01-3.4 0 1.7 1.7 0 00-2.6-1 1.7 1.7 0 01-2.4-2.4 1.7 1.7 0 00-1-2.6 1.7 1.7 0 010-3.4 1.7 1.7 0 001-2.6 1.7 1.7 0 012.4-2.4 1.7 1.7 0 002.6-1.1zM12 15a3 3 0 100-6 3 3 0 000 6z'];
 $nav[] = ['profile.php', 'Profile', 'M5.1 19a7 7 0 0113.8 0M12 11a4 4 0 100-8 4 4 0 000 8z'];
 ?>
 <!doctype html>
@@ -96,9 +114,10 @@ tailwind.config = {
       <div class="grid h-7 w-7 place-items-center rounded-md bg-brand-500 text-[13px] font-semibold text-white">H</div>
       <span class="text-sm font-semibold tracking-tight text-zinc-900"><?= APP_NAME ?></span>
     </div>
-    <nav class="mt-3 space-y-0.5 px-2">
-      <p class="px-2 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-zinc-400">Workspace</p>
-      <?php foreach ($nav as $item):
+    <nav class="h-[calc(100vh-7.5rem)] space-y-0.5 overflow-y-auto px-2 py-3">
+      <?php foreach (['Workspace' => $nav, 'HRMS' => $hrmsNav] as $section => $items): if (!$items) continue; ?>
+      <p class="px-2 pb-1.5 pt-3 text-[11px] font-medium uppercase tracking-wider text-zinc-400 first:pt-0"><?= $section ?></p>
+      <?php foreach ($items as $item):
         [$href, $label, $icon] = $item;
         $badge  = $item[3] ?? 0;
         $active = $current === $href; ?>
@@ -109,7 +128,7 @@ tailwind.config = {
             <span class="ml-auto grid h-4 min-w-[1rem] place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white tabular-nums"><?= $badge ?></span>
           <?php endif; ?>
         </a>
-      <?php endforeach; ?>
+      <?php endforeach; endforeach; ?>
     </nav>
     <div class="absolute inset-x-0 bottom-0 border-t border-zinc-200 p-2">
       <div class="flex items-center gap-2.5 rounded-md px-2 py-1.5">

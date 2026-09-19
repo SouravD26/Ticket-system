@@ -20,10 +20,15 @@ $__base    = ($__docRoot !== '' && stripos($__appDir, $__docRoot) === 0)
 define('BASE_URL', rtrim($__base, '/'));
 unset($__appDir, $__docRoot, $__base);
 
+// Signs the time-limited photo links the mobile API hands out. Keep it secret;
+// changing it only invalidates links already issued.
+define('APP_KEY', '94a019b908b541663bc3f89c373e94ca53153c46369b67035b8b9bf512233461');
+
 define('UPLOAD_DIR', __DIR__ . '/../uploads');
 define('MAX_UPLOAD', 5 * 1024 * 1024); // 5 MB
 
-date_default_timezone_set('Asia/Kathmandu');
+// India Standard Time: attendance punches are stamped with this clock.
+date_default_timezone_set('Asia/Kolkata');
 
 error_reporting(E_ALL);
 ini_set('display_errors', '1'); // set to '0' on live hosting

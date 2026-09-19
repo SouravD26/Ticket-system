@@ -157,3 +157,25 @@ uploads/    attachments — PHP execution disabled via .htaccess
   `log_activity()` is called. The natural hooks are the `assigned`, `completed` and `acknowledged` activity actions.
 - A reply no longer re-opens a completed ticket on its own; the requester does that deliberately with the
   **Not resolved** button, so "completed" always reflects a real decision.
+
+## HRMS / Attendance (merged from the old attendance app)
+
+Attendance, face kiosk, employees, leave, comp-off/OD, Excel reports and the mobile
+API (`api/v1`) now run inside this app on the same `users` table. Employees sign in
+with their mobile number.
+
+### Moving a live server over
+
+1. Back up both databases.
+2. Import the attendance dump into its own database on the same MySQL server
+   (e.g. `hrms_src`) and let the ticket DB user read it.
+3. Upload the code, including `vendor/` (PhpSpreadsheet - not in git; or run
+   `composer install`).
+4. Copy the old app's `uploads/` folder to `uploads/hrms/` (selfies, employee_photos).
+5. Open `install/hrms_merge.php?src=hrms_src` and press **Run merge**. It is safe to
+   run twice. Then delete the `install/` folder.
+6. Serve over **HTTPS** - browsers only open the camera on HTTPS (or localhost).
+7. Point the mobile app at `https://<host>/<ticket-system path>/api/v1`.
+
+The attendance day runs 06:00-06:00 India time (`Asia/Kolkata`, set in
+`includes/config.php`), and punch times always come from the server clock.

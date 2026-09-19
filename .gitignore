@@ -22,3 +22,6 @@ desktop.ini
 #     git rm --cached includes/config.php
 # and add the line below.
 # includes/config.php
+
+# Composer packages (PhpSpreadsheet); run `composer install` or upload the folder.
+vendor/

@@ -226,7 +226,12 @@ function log_activity(int $ticketId, string $action, string $detail = ''): void
         [$ticketId, user()['id'] ?? null, $action, $detail]);
 }
 
-const ROLE_LABELS = ['superadmin'=>'Super Admin', 'admin'=>'Admin', 'it'=>'IT', 'employee'=>'Employee', 'hr'=>'HR'];
+const ROLE_LABELS = ['superadmin'=>'Super Admin', 'admin'=>'Admin', 'it'=>'IT', 'employee'=>'Employee', 'hr'=>'HR', 'face_operator'=>'Face Operator', 'hod'=>'HOD'];
+
+/** Head of Department: a read-only view of everyone's daily task sheets (task-view.php). */
+function is_hod(): bool { return role() === 'hod'; }
+/** May read every employee's daily tasks. */
+function can_view_all_tasks(): bool { return is_super() || is_admin() || is_hod(); }
 
 /* Where a joiner or a leaver has got to. */
 const ONBOARD_STATUSES  = ['pending'=>'Pending', 'in_progress'=>'In Progress', 'completed'=>'Completed'];
@@ -421,4 +426,66 @@ function find_ticket(int $id): ?array
     if (is_it() && ((int)$t['assigned_to'] === $me || (int)$t['user_id'] === $me)) return $t;
     if ((int)$t['user_id'] === $me) return $t;
     return null;
+}
+
+/* ---------- passwords ---------- */
+
+/** What a new password must contain. Shown under every password box and checked on save. */
+const PASSWORD_RULES = [
+    'len'     => ['At least 8 characters',            '/^.{8,}$/u'],
+    'letter'  => ['A letter (a-z)',                   '/[A-Za-z]/'],
+    'number'  => ['A number (0-9)',                   '/\d/'],
+    'special' => ['A special character (@ # $ % & *)', '/[^A-Za-z0-9]/'],
+];
+
+/** Null when the password meets PASSWORD_RULES, otherwise what it is missing. */
+function password_problem(string $p): ?string
+{
+    $missing = [];
+    foreach (PASSWORD_RULES as [$label, $re]) if (!preg_match($re, $p)) $missing[] = strtolower($label);
+    return $missing ? 'The password needs ' . implode(', ', $missing) . '.' : null;
+}
+
+/**
+ * A password box with a show/hide eye and a live checklist of PASSWORD_RULES.
+ * $required: the form cannot be sent without one (new accounts); otherwise blank keeps the old password.
+ */
+function password_field(string $name, string $placeholder, bool $required, string $class): string
+{
+    static $n = 0; $id = 'pw' . ++$n;
+    $rules = '';
+    foreach (PASSWORD_RULES as $k => [$label, $re]) {
+        $rules .= '<li data-rule="' . $k . '" class="flex items-center gap-1.5 text-zinc-400"><span class="pw-mark inline-block w-3 text-center">○</span>' . e($label) . '</li>';
+    }
+    $js = $n > 1 ? '' : '<script>
+      const PW_RULES = {len: /^.{8,}$/u, letter: /[A-Za-z]/, number: /\d/, special: /[^A-Za-z0-9]/};
+      function pwCheck(inp) {
+        const box = document.getElementById(inp.id + "-rules"), v = inp.value;
+        box.classList.toggle("hidden", v === "" && !inp.required);
+        let ok = true;
+        box.querySelectorAll("li").forEach(li => {
+          const pass = PW_RULES[li.dataset.rule].test(v); ok = ok && pass;
+          li.className = "flex items-center gap-1.5 " + (v === "" ? "text-zinc-400" : pass ? "text-emerald-600" : "text-rose-600");
+          li.querySelector(".pw-mark").textContent = v === "" ? "○" : pass ? "✓" : "✗";
+        });
+        inp.setCustomValidity(v === "" || ok ? "" : "The password does not meet all the rules below.");
+      }
+      function pwToggle(btn, id) {
+        const inp = document.getElementById(id), show = inp.type === "password";
+        inp.type = show ? "text" : "password";
+        btn.querySelector(".eye-open").classList.toggle("hidden", show);
+        btn.querySelector(".eye-shut").classList.toggle("hidden", !show);
+        btn.title = show ? "Hide password" : "Show password";
+      }
+    </script>';
+    return '<div class="relative">'
+        . '<input type="password" id="' . $id . '" name="' . e($name) . '" autocomplete="new-password" placeholder="' . e($placeholder) . '"'
+        . ($required ? ' required' : '') . ' oninput="pwCheck(this)" class="' . e($class) . ' pr-9">'
+        . '<button type="button" tabindex="-1" onclick="pwToggle(this, \'' . $id . '\')" title="Show password"'
+        . ' class="absolute inset-y-0 right-0 grid w-9 place-items-center text-zinc-400 hover:text-zinc-700">'
+        . '<svg class="eye-open h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+        . '<svg class="eye-shut hidden h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.1A10 10 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 005.4-1.6"/></svg>'
+        . '</button></div>'
+        . '<ul id="' . $id . '-rules" class="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]' . ($required ? '' : ' hidden') . '">' . $rules . '</ul>'
+        . $js;
 }

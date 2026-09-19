@@ -7,11 +7,9 @@ require_once __DIR__ . '/includes/functions.php';
 require_super();
 $me = user();
 
-/* Super Admin is handed out by a Super Admin and nobody else - it is the only
-   role that can create more of itself, so it is gated separately from the rest
-   even though this page is Super Admin-only to begin with. */
-$assignable = ['employee' => 'Employee', 'hr' => 'HR', 'it' => 'IT', 'admin' => 'Admin'];
-if (is_super()) { $assignable['superadmin'] = 'Super Admin'; }
+/* Staff accounts only. Super Admins, Admins and kiosk logins are system accounts,
+   listed and created on system-accounts.php instead. */
+$assignable = ['employee' => 'Employee', 'hr' => 'HR', 'it' => 'IT'];
 /* Role and department are two separate things: what the account may do, and
    which department's queue it belongs to. The list comes from the one source
    every other page reads. */
@@ -23,9 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id     = (int) post('id');
     $self   = $id === (int) $me['id'];
 
-    // Belt and braces: never let the role through on a forged post.
-    if (post('role') === 'superadmin' && !is_super()) {
-        flash('Only a Super Admin can create a Super Admin account.', 'error');
+    // System accounts are managed on their own page, never from here.
+    if ($id && q('SELECT 1 FROM users WHERE id = ? AND role IN ("superadmin","admin","hod","face_operator")', [$id])->fetch()) {
+        flash('That is a system account - manage it under System Accounts.', 'error');
         redirect('users.php');
     }
 
@@ -90,7 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $active = $self ? null : (post('is_active') === '1' ? 1 : 0);
 
             // email is NOT NULL in the schema: an empty box means "leave it alone".
-            q('UPDATE users SET name = ?, email = COALESCE(?, email), phone = ?, department_id = ?,
+            // The phone is also an HRMS login, so a blank box leaves it alone too.
+            q('UPDATE users SET name = ?, email = COALESCE(?, email), phone = COALESCE(?, phone), department_id = ?,
                                 role = COALESCE(?, role), is_active = COALESCE(?, is_active)
                WHERE id = ?',
               [$name, $email ?: null, post('phone') ?: null, $dept ?: null, $role, $active, $id]);
@@ -103,6 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('users.php');
     }
 
+    if ($action === 'delete' && !$self && q('SELECT 1 FROM attendance WHERE user_id = ? LIMIT 1', [$id])->fetch()) {
+        // Deleting would cascade away their attendance history; resigning keeps it.
+        flash('This person has attendance records. Mark them as resigned under Employees instead of deleting.', 'error');
+        redirect('users.php');
+    }
     if ($action === 'delete' && !$self) {
         q('DELETE FROM users WHERE id = ?', [$id]);
         flash('Account deleted along with its tickets and task entries.');
@@ -117,7 +121,8 @@ $editing = (int) get_('edit', '0');
 $users = q('SELECT u.*, d.name AS dept_name
             FROM users u
             LEFT JOIN departments d ON d.id = u.department_id
-            ORDER BY FIELD(u.role,"superadmin","admin","hr","it","employee"), u.name')->fetchAll();
+            WHERE u.role NOT IN ("superadmin","admin","hod","face_operator")
+            ORDER BY FIELD(u.role,"hr","it","employee"), u.name')->fetchAll();
 
 $pageTitle = 'Users';
 require __DIR__ . '/layout/header.php';

@@ -2,6 +2,10 @@
 require_once __DIR__ . '/includes/functions.php';
 require_login();
 $me = user();
+// The kiosk account has one job.
+if ($me['role'] === 'face_operator') redirect('face.php');
+// The HOD account has its own dashboard: ticket details, then the daily task sheets.
+if ($me['role'] === 'hod') redirect('hod-dashboard.php');
 
 /* Hand a ticket to an IT person without opening it first. Super Admin only. */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && post('action') === 'assign') {

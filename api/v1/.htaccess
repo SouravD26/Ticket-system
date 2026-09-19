@@ -1,0 +1,22 @@
+# Route every request under api/v1/ through the front controller.
+RewriteEngine On
+
+# Pass the Authorization header through to PHP (CGI/FastCGI strips it).
+RewriteCond %{HTTP:Authorization} ^(.+)$
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+<IfModule mod_headers.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
+# No RewriteBase: the rule below is relative to this folder, wherever it is deployed.
+
+# Real files (index.php itself) are served directly.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Larger request bodies: punch selfies arrive as base64 JSON.
+<IfModule mod_php.c>
+    php_value post_max_size 12M
+    php_value upload_max_filesize 12M
+</IfModule>
