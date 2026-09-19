@@ -152,6 +152,8 @@ const STATUSES   = ['open' => 'Open', 'pending' => 'In Progress', 'resolved' => 
 
 /** Statuses IT staff may set themselves. Closing is the requester's acknowledgement. */
 const IT_STATUSES = ['open', 'pending', 'resolved'];
+/** Where the problem is. Edit this list to match your offices / floors. */
+const TICKET_LOCATIONS = ['Head Office', 'Ground Floor', 'First Floor', 'Second Floor', 'Server Room', 'Conference Room', 'Warehouse', 'Branch Office', 'Other'];
 const PRIORITIES = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
 
 function status_badge(string $s): string
