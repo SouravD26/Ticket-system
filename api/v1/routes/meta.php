@@ -37,6 +37,16 @@ function api_endpoint_map(): array {
             'GET  leave/od'              => 'on-duty records for a range',
             'GET  leave/comp_off'        => 'comp-off records for a range',
         ],
+        'tickets' => [
+            'GET  tickets'               => 'own tickets (IT: assigned + raised; admin: all); status?, search?, page',
+            'GET  tickets/show'          => 'id -> ticket, replies and activity',
+            'POST tickets/create'        => 'subject, body, location, trained_before (yes|no)',
+            'POST tickets/reply'         => 'id, message, is_internal? (IT only)',
+            'POST tickets/update'        => 'id, status?, priority?, assigned_to?, department_id? (IT / Super Admin)',
+            'POST tickets/acknowledge'   => 'id -> requester signs the work off and the ticket closes',
+            'POST tickets/reraise'       => 'id, reason? -> still broken, back to the queue',
+            'GET  tickets/locations'     => 'location list, statuses and priorities for the form',
+        ],
         'employees' => [
             'GET  employees'             => 'directory: search, department, company, location, page',
             'GET  employees/show'        => 'id -> one employee',

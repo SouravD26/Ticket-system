@@ -15,6 +15,17 @@ $assignable = ['employee' => 'Employee', 'hr' => 'HR', 'it' => 'IT'];
    every other page reads. */
 $departments = all_departments();
 
+/** The list position - page and search - carried through every redirect. */
+function users_qs(array $extra = []): string
+{
+    $src = $_SERVER['REQUEST_METHOD'] === 'POST' ? $_POST : $_GET;
+    $keep = array_filter([
+        'q'    => trim((string) ($extra['q']    ?? $src['q']    ?? '')),
+        'page' => (int)        ($extra['page'] ?? $src['page'] ?? 0),
+    ] + $extra, fn($v) => $v !== '' && $v !== 0);
+    return $keep ? '?' . http_build_query($keep) : '';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $action = post('action');
@@ -24,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // System accounts are managed on their own page, never from here.
     if ($id && q('SELECT 1 FROM users WHERE id = ? AND role IN ("superadmin","admin","hod","face_operator")', [$id])->fetch()) {
         flash('That is a system account - manage it under System Accounts.', 'error');
-        redirect('users.php');
+        redirect('users.php' . users_qs());
     }
 
     if ($action === 'create') {
@@ -99,30 +110,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             flash('Account updated.' . ($pass !== '' ? ' Password reset.' : ''));
         }
-        redirect('users.php');
+        redirect('users.php' . users_qs());
     }
 
     if ($action === 'delete' && !$self && q('SELECT 1 FROM attendance WHERE user_id = ? LIMIT 1', [$id])->fetch()) {
         // Deleting would cascade away their attendance history; resigning keeps it.
         flash('This person has attendance records. Mark them as resigned under Employees instead of deleting.', 'error');
-        redirect('users.php');
+        redirect('users.php' . users_qs());
     }
     if ($action === 'delete' && !$self) {
         q('DELETE FROM users WHERE id = ?', [$id]);
         flash('Account deleted along with its tickets and task entries.');
     }
 
-    redirect('users.php');
+    redirect('users.php' . users_qs());
 }
 
-// One row is put into edit mode at a time, by ?edit=<id>.
-$editing = (int) get_('edit', '0');
+// One row is put into edit mode at a time, by ?edit=<id>; see below.
+/* 300+ accounts, so the list is searched and paged rather than printed whole. */
+$search = trim((string) get_('q'));
+$where  = ['u.role NOT IN ("superadmin","admin","hod","face_operator")'];
+$args   = [];
+if ($search !== '') {
+    $where[] = '(u.name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)';
+    $args = array_fill(0, 4, "%$search%");
+}
+$sqlWhere = implode(' AND ', $where);
 
-$users = q('SELECT u.*, d.name AS dept_name
+$total = (int) q("SELECT COUNT(*) FROM users u WHERE $sqlWhere", $args)->fetchColumn();
+$per   = 20;
+$pages = max(1, (int) ceil($total / $per));
+$page  = min($pages, max(1, (int) get_('page', 1)));
+
+// An edit link opens the row wherever it is, so jump to the page holding it.
+$editing = (int) get_('edit', '0');
+if ($editing && !get_('page')) {
+    $before = (int) q("SELECT COUNT(*) FROM users u WHERE $sqlWhere AND
+                       (FIELD(u.role,'hr','it','employee'), u.name) <
+                       (SELECT FIELD(role,'hr','it','employee'), name FROM users WHERE id = ?)",
+                      array_merge($args, [$editing]))->fetchColumn();
+    $page = min($pages, (int) floor($before / $per) + 1);
+}
+
+$users = q("SELECT u.*, d.name AS dept_name
             FROM users u
             LEFT JOIN departments d ON d.id = u.department_id
-            WHERE u.role NOT IN ("superadmin","admin","hod","face_operator")
-            ORDER BY FIELD(u.role,"hr","it","employee"), u.name')->fetchAll();
+            WHERE $sqlWhere
+            ORDER BY FIELD(u.role,'hr','it','employee'), u.name
+            LIMIT $per OFFSET " . (($page - 1) * $per), $args)->fetchAll();
 
 $pageTitle = 'Users';
 require __DIR__ . '/layout/header.php';
@@ -174,9 +209,19 @@ function role_select(string $role, array $roles, string $field): string
   </form>
 
   <div class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
-    <div class="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5">
+    <div class="flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5">
       <h2 class="text-[13px] font-semibold text-zinc-900">Accounts</h2>
-      <span class="rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums"><?= count($users) ?></span>
+      <span class="rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums">
+        <?= $total ? (($page - 1) * $per + 1) . '–' . min($page * $per, $total) . ' of ' . $total : 0 ?>
+      </span>
+      <form class="ml-auto flex items-center gap-2">
+        <input name="q" value="<?= e($search) ?>" placeholder="Search name, user ID, email or phone"
+               class="w-56 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] outline-none placeholder:text-zinc-400 focus:border-brand-400">
+        <button class="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 hover:bg-zinc-50">Search</button>
+        <?php if ($search !== ''): ?>
+          <a href="<?= url('users.php') ?>" class="text-[12px] text-zinc-400 hover:text-zinc-700">Clear</a>
+        <?php endif; ?>
+      </form>
     </div>
 
     <ul class="divide-y divide-zinc-100">
@@ -189,6 +234,8 @@ function role_select(string $role, array $roles, string $field): string
               <?= csrf_field() ?>
               <input type="hidden" name="action" value="update">
               <input type="hidden" name="id" value="<?= $u['id'] ?>">
+              <input type="hidden" name="page" value="<?= $page ?>">
+              <input type="hidden" name="q" value="<?= e($search) ?>">
 
               <div class="flex items-center gap-2 text-[11px] text-zinc-500">
                 <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-50 text-[11px] font-semibold text-brand-600"><?= e(initials($u['name'])) ?></span>
@@ -215,7 +262,7 @@ function role_select(string $role, array $roles, string $field): string
                 <?php endif; ?>
                 <div class="ml-auto flex items-center gap-1.5">
                   <button class="rounded-md bg-brand-500 px-3 py-1.5 text-[12px] font-medium text-white shadow-sm transition hover:bg-brand-600">Save</button>
-                  <a href="<?= url('users.php') ?>" class="rounded-md border border-zinc-200 px-3 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50">Cancel</a>
+                  <a href="<?= url('users.php' . users_qs(['page' => $page, 'q' => $search])) ?>" class="rounded-md border border-zinc-200 px-3 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50">Cancel</a>
                 </div>
               </div>
             </form>
@@ -241,7 +288,7 @@ function role_select(string $role, array $roles, string $field): string
               </div>
 
               <div class="flex shrink-0 items-center gap-1.5">
-                <a href="?edit=<?= $u['id'] ?>"
+                <a href="<?= url('users.php' . users_qs(['edit' => $u['id'], 'page' => $page, 'q' => $search])) ?>"
                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50">
                   <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.9 3.8a2.1 2.1 0 013 3L7.5 19.2l-4 1 1-4L16.9 3.8z"/>
@@ -255,6 +302,8 @@ function role_select(string $role, array $roles, string $field): string
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                    <input type="hidden" name="page" value="<?= $page ?>">
+                    <input type="hidden" name="q" value="<?= e($search) ?>">
                     <button class="inline-flex items-center gap-1.5 rounded-md border border-rose-200 px-2.5 py-1.5 text-[12px] font-medium text-rose-700 transition hover:bg-rose-50">
                       <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13M10 11v6M14 11v6"/>
@@ -269,7 +318,23 @@ function role_select(string $role, array $roles, string $field): string
           <?php endif; ?>
         </li>
       <?php endforeach; ?>
+      <?php if (!$users): ?>
+        <li class="px-4 py-8 text-center text-[13px] text-zinc-400">No account matches “<?= e($search) ?>”.</li>
+      <?php endif; ?>
     </ul>
+
+    <?php if ($pages > 1): ?>
+      <div class="flex items-center justify-between border-t border-zinc-200 px-4 py-2.5 text-[12px] text-zinc-500">
+        <span>Page <?= $page ?> of <?= $pages ?></span>
+        <span class="flex items-center gap-1.5">
+          <?php $nav = fn(int $n, string $label) =>
+            '<a href="' . url('users.php' . users_qs(['page' => $n, 'q' => $search]))
+            . '" class="rounded-md border border-zinc-200 px-2.5 py-1.5 font-medium text-zinc-600 transition hover:bg-zinc-50">' . $label . '</a>'; ?>
+          <?= $page > 1 ? $nav(1, 'First') . $nav($page - 1, 'Previous') : '' ?>
+          <?= $page < $pages ? $nav($page + 1, 'Next') . $nav($pages, 'Last') : '' ?>
+        </span>
+      </div>
+    <?php endif; ?>
   </div>
 </div>
 <?php require __DIR__ . '/layout/footer.php'; ?>
