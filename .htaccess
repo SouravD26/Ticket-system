@@ -2,6 +2,13 @@ Options -Indexes
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  # The app sits at the domain root on helpdesk.sanmarg.in, but the mobile app
+  # addresses it as /ticket-system/... . Serve that prefix from the same files
+  # so both URLs work; harmless under XAMPP, where the folder really is there.
+  RewriteRule ^ticket-system/?$ index.php [L]
+  RewriteRule ^ticket-system/(.+)$ $1 [L]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^$ index.php [L]

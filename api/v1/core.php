@@ -308,7 +308,15 @@ function save_selfie(string $base64, int $user_id, string $prefix = 'selfie'): a
 }
 
 function base_url(): string {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    // Behind Cloudflare or any TLS-terminating proxy the request reaches PHP as
+    // plain http, so the forwarded headers decide the scheme; without them the
+    // app would hand the mobile client http:// photo links on an https site.
+    $fwd    = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || $fwd === 'https'
+        || (string)($_SERVER['HTTP_CF_VISITOR'] ?? '') !== '' && str_contains((string)$_SERVER['HTTP_CF_VISITOR'], '"https"')
+        || (int)($_SERVER['SERVER_PORT'] ?? 0) === 443;
+    $scheme = $secure ? 'https' : 'http';
     $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
     // .../api/v1/index.php -> project root
     $script = str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '')));
