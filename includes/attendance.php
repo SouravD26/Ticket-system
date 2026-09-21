@@ -13,6 +13,8 @@
 require_once __DIR__ . '/functions.php';
 
 const ATT_DAY_STARTS_AT = 6; // hour
+/** The longest a single punch in may stay open before it counts as forgotten. */
+const ATT_SHIFT_MAX_H = 16;
 const ATT_DIR = UPLOAD_DIR . '/hrms';
 /** A self punch whose GPS fix is less precise than this (metres) is refused. */
 const ATT_MAX_ACCURACY_M = 100;
@@ -24,11 +26,28 @@ function att_workday(?int $ts = null): string
     return (int) date('G', $ts) < ATT_DAY_STARTS_AT ? date('Y-m-d', $ts - 86400) : date('Y-m-d', $ts);
 }
 
-/** The row still waiting for a punch out today, if any. */
-function att_open_punch(int $userId, ?string $date = null): ?array
+/**
+ * The row still waiting for a punch out, if any.
+ *
+ * A shift that began before 6 AM yesterday's side of the boundary and runs past it
+ * is still the same shift, so when today has no open punch the previous work day is
+ * tried as well - otherwise a night shift ending at 06:03 would be split over two
+ * days and both would show no hours. A punch left open longer than one shift
+ * (ATT_SHIFT_MAX_H) is treated as forgotten and not reopened.
+ */
+function att_open_punch(int $userId, ?string $date = null, bool $carryOver = true): ?array
 {
-    return q('SELECT * FROM attendance WHERE user_id = ? AND date = ? AND punch_in IS NOT NULL AND punch_out IS NULL
-              ORDER BY id DESC LIMIT 1', [$userId, $date ?? att_workday()])->fetch() ?: null;
+    $date = $date ?? att_workday();
+    $row = q('SELECT * FROM attendance WHERE user_id = ? AND date = ? AND punch_in IS NOT NULL AND punch_out IS NULL
+              ORDER BY id DESC LIMIT 1', [$userId, $date])->fetch() ?: null;
+    if ($row || !$carryOver) return $row;
+
+    $prev = date('Y-m-d', strtotime("$date -1 day"));
+    $row = q('SELECT * FROM attendance WHERE user_id = ? AND date = ? AND punch_in IS NOT NULL AND punch_out IS NULL
+              ORDER BY id DESC LIMIT 1', [$userId, $prev])->fetch() ?: null;
+    if (!$row) return null;
+
+    return time() - strtotime("$prev {$row['punch_in']}") <= ATT_SHIFT_MAX_H * 3600 ? $row : null;
 }
 
 function att_distance_m(float $lat1, float $lng1, float $lat2, float $lng2): float
@@ -158,6 +177,9 @@ function att_punch(array $u, string $type, string $by = 'self', array $opt = [])
     if ($type === 'out' && !$open) {
         return [false, 'No open punch in found for today. Please punch in first.', $type];
     }
+    if ($type === 'out' && $open['date'] !== $date) {
+        $date = $open['date'];   // a night shift that ran past 6 AM belongs to the day it started
+    }
 
     $selfie = null;
     if ($by === 'self') {
@@ -177,7 +199,8 @@ function att_punch(array $u, string $type, string $by = 'self', array $opt = [])
     q('UPDATE attendance SET punch_out = ?, selfie_punchout = ?, punch_out_location = ?,
                              punch_out_lat = ?, punch_out_lng = ?, punch_out_accuracy = ?
        WHERE id = ?', [$time, $selfie, $place, $lat, $lng, $acc, $open['id']]);
-    att_save_route($uid, (int) $open['id'], $date);
+    // A carried-over shift closes on the day it started, not on today.
+    att_save_route($uid, (int) $open['id'], $open['date']);
     return [true, 'Punched out at ' . date('h:i A') . '.', 'out'];
 }
 
@@ -326,11 +349,19 @@ function att_grid(array $users, string $from, string $to): array
         $id = (int) $u['id'];
         $leftAfter = ($u['status'] ?? '') === 'Resign' && !empty($u['date_of_exit'])
             ? date('Y-m-t', strtotime($u['date_of_exit'])) : null;
+        // Nobody is absent before their first day, or after a future date has arrived.
+        $joined = !empty($u['date_of_joining']) ? date('Y-m-d', strtotime($u['date_of_joining'])) : null;
+        $today  = att_workday();
         for ($d = $from; $d <= $to; $d = date('Y-m-d', strtotime("$d +1 day"))) {
-            if ($leftAfter && $d > $leftAfter) { $grid[$id][$d] = ['code' => '-', 'in' => null, 'out' => null, 'secs' => 0, 'co' => null]; continue; }
+            $blank = ($leftAfter && $d > $leftAfter) || ($joined && $d < $joined) || $d > $today;
+            if ($blank) { $grid[$id][$d] = ['code' => '-', 'in' => null, 'out' => null, 'secs' => 0, 'co' => null]; continue; }
             $p = $punch[$id][$d] ?? [];
-            $first = $p ? $p[0]['punch_in'] : null;
-            $last  = $p ? end($p)['punch_out'] : null;
+            // The day is the earliest punch in to the latest punch out, whatever order the
+            // rows were written in and whichever row happens to be left open.
+            $ins  = array_filter(array_column($p, 'punch_in'));
+            $outs = array_filter(array_column($p, 'punch_out'));
+            $first = $ins  ? min($ins)  : null;
+            $last  = $outs ? max($outs) : null;
             if (($u['week_off'] ?? '') === date('l', strtotime($d))) $code = 'WO';
             elseif (isset($od[$id][$d]))  $code = 'OD';
             elseif ($p)                   $code = 'P';

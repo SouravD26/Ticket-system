@@ -34,7 +34,6 @@ if (can_view_reports()) {
 if (is_super()) {
     $nav[] = ['users.php',       'Users',       'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 100-8 4 4 0 000 8z'];
     $nav[] = ['system-accounts.php', 'System Accounts', 'M12 3l7 4v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V7l7-4zM9.5 12l2 2 3.5-4'];
-    $nav[] = ['departments.php', 'Departments', 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6'];
 }
 if (is_super()) {
     // Sits directly above Profile, carrying the count of what HR is waiting on.

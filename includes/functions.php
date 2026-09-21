@@ -152,8 +152,21 @@ const STATUSES   = ['open' => 'Open', 'pending' => 'In Progress', 'resolved' => 
 
 /** Statuses IT staff may set themselves. Closing is the requester's acknowledgement. */
 const IT_STATUSES = ['open', 'pending', 'resolved'];
-/** Where the problem is. Edit this list to match your offices / floors. */
+/** Fallback list, used only when the HRMS locations table is missing or empty. */
 const TICKET_LOCATIONS = ['Head Office', 'Ground Floor', 'First Floor', 'Second Floor', 'Server Room', 'Conference Room', 'Warehouse', 'Branch Office', 'Other'];
+
+/** Where the problem is — the HRMS master list (HRMS → Settings → Locations). */
+function ticket_locations(): array
+{
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    try {
+        $cache = q('SELECT name FROM locations ORDER BY name')->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {
+        $cache = [];
+    }
+    return $cache = $cache ?: TICKET_LOCATIONS;
+}
 const PRIORITIES = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
 
 function status_badge(string $s): string

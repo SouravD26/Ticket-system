@@ -14,15 +14,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body     = post('body');
     $deptId   = (int) ($myDept['id'] ?? 0);
     $location = post('location');
+    $trained  = post('trained_before');
 
     if (mb_strlen($subject) < 5)             $errors[] = 'Subject must be at least 5 characters.';
-    if (!in_array($location, TICKET_LOCATIONS, true)) $errors[] = 'Please choose a location.';
+    if (!in_array($location, ticket_locations(), true)) $errors[] = 'Please choose a location.';
+    if (!in_array($trained, ['yes', 'no'], true)) $errors[] = 'Please tell us whether you have been trained to troubleshoot this issue.';
     if (mb_strlen($body) < 10)               $errors[] = 'Please describe the issue in at least 10 characters.';
 
     if (!$errors) {
         $code = next_ticket_code();
-        q('INSERT INTO tickets (code, subject, body, user_id, department_id, location) VALUES (?,?,?,?,?,?)',
-          [$code, $subject, $body, user()['id'], $deptId ?: null, $location]);
+        q('INSERT INTO tickets (code, subject, body, user_id, department_id, location, trained_before) VALUES (?,?,?,?,?,?,?)',
+          [$code, $subject, $body, user()['id'], $deptId ?: null, $location, $trained]);
         $ticketId = (int) db()->lastInsertId();
 
         try {
@@ -70,10 +72,24 @@ require __DIR__ . '/layout/header.php';
         <select id="location" name="location" required
                 class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
           <option value="">Select location…</option>
-          <?php foreach (TICKET_LOCATIONS as $loc): ?>
+          <?php foreach (ticket_locations() as $loc): ?>
             <option value="<?= e($loc) ?>" <?= ($_POST['location'] ?? '') === $loc ? 'selected' : '' ?>><?= e($loc) ?></option>
           <?php endforeach; ?>
         </select>
+      </div>
+
+      <div>
+        <span class="mb-1.5 block text-[13px] text-zinc-600">Have you been trained to troubleshoot this issue before?</span>
+        <div class="flex gap-6">
+          <?php foreach (['yes' => 'Yes', 'no' => 'No'] as $val => $lbl): ?>
+            <label class="inline-flex items-center gap-2 text-[13px] text-zinc-700">
+              <input type="radio" name="trained_before" value="<?= $val ?>" required
+                     <?= ($_POST['trained_before'] ?? '') === $val ? 'checked' : '' ?>
+                     class="h-4 w-4 border-zinc-300 text-brand-500 focus:ring-brand-400/25">
+              <?= $lbl ?>
+            </label>
+          <?php endforeach; ?>
+        </div>
       </div>
 
       <div>

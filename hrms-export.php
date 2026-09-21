@@ -59,7 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $grid = att_grid(array_values($people), $from, $to);
     $days = [];
     for ($d = $from; $d <= $to; $d = date('Y-m-d', strtotime("$d +1 day"))) $days[] = $d;
-    $lastCol = C::stringFromColumnIndex(count($days) + 1);
+    // One column per day, then a summary column for the whole range.
+    $sumIdx  = count($days) + 2;
+    $sumCol  = C::stringFromColumnIndex($sumIdx);
+    $lastCol = $sumCol;
     $period = date('d M Y', strtotime($from)) . ' to ' . date('d M Y', strtotime($to));
 
     $byLoc = [];
@@ -79,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $s->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $r = 3;
         foreach ($days as $i => $d) $s->setCellValue(C::stringFromColumnIndex($i + 2) . $r, date('d-D', strtotime($d)));
+        $s->setCellValue("$sumCol$r", 'PERIOD');
         $s->getStyle("A$r:$lastCol$r")->getFont()->setBold(true);
         $r++;
 
@@ -91,9 +95,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $s->setCellValue("A$r", trim(($p['employee_id'] ? $p['employee_id'] . ' - ' : '') . $p['name']));
                 $s->getStyle("A$r")->getFont()->setBold(true);
                 $r++;
+                // What the whole range adds up to for this person.
+                $secs = array_sum(array_map(fn($d) => $g[$d]['secs'], $days));
+                $codes = array_count_values(array_map(fn($d) => $g[$d]['code'], $days));
                 foreach (['Status', 'In', 'Out', 'Total'] as $row) {
                     $s->setCellValue("A$r", $row);
                     $s->getStyle("A$r")->getFont()->setBold(true);
+                    $summary = match ($row) {
+                        'Status' => 'P ' . ($codes['P'] ?? 0) . ' / A ' . ($codes['A'] ?? 0),
+                        'In'     => 'Days ' . ($codes['P'] ?? 0),
+                        'Out'    => '',
+                        'Total'  => sprintf('%d:%02d', intdiv($secs, 3600), intdiv($secs % 3600, 60)),
+                    };
+                    $s->setCellValueExplicit("$sumCol$r", $summary, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    $s->getStyle("$sumCol$r")->getFont()->setBold(true);
                     foreach ($days as $i => $d) {
                         $c = $g[$d]; $col = C::stringFromColumnIndex($i + 2);
                         $v = match ($row) {
@@ -115,6 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $s->getColumnDimension('A')->setWidth(28);
         foreach ($days as $i => $d) $s->getColumnDimension(C::stringFromColumnIndex($i + 2))->setWidth(7);
+        $s->getColumnDimension($sumCol)->setWidth(12);
         $s->getStyle("B3:$lastCol" . ($r - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $s->getStyle("A3:$lastCol" . ($r - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         $s->freezePane('B4');
@@ -144,7 +160,7 @@ $box = function (string $name, array $items) { ob_start(); ?>
   <form method="post" id="exp" class="rounded-lg border border-zinc-200 bg-white p-5 shadow-card">
     <?= csrf_field() ?><input type="hidden" name="type" value="attendance">
     <h2 class="text-[13px] font-semibold text-zinc-900">Attendance Excel</h2>
-    <p class="mt-1 text-[12px] text-zinc-500">One sheet per location, grouped by department. Each day shows the status (P, A, WO, OD, ADJ, L = leave, H = holiday), first punch in, last punch out and total hours.</p>
+    <p class="mt-1 text-[12px] text-zinc-500">One sheet per location, grouped by department. Each day shows the status (P, A, WO, OD, ADJ, L = leave, H = holiday), the first punch in, the last punch out and the hours between them. A PERIOD column on the right totals the range.</p>
 
     <div class="mt-4 grid gap-3 sm:grid-cols-2">
       <div><label class="<?= $lbl ?>">From</label><input type="date" name="from" required value="<?= date('Y-m-01') ?>" class="<?= ATT_FIELD ?>"></div>

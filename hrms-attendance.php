@@ -26,11 +26,15 @@ if ($userId) {
     /* ---------- everyone, one day ---------- */
     $date = strtotime(get_('date')) ? date('Y-m-d', strtotime(get_('date'))) : att_workday();
     $f = ['dept' => (int) get_('dept'), 'company' => get_('company'), 'location' => get_('location'), 'show' => get_('show', 'all')];
-    $where = ["u.phone IS NOT NULL", "u.role NOT IN ('superadmin','admin','hod','face_operator')", "u.status = 'Working'"]; $args = [];
+    // Working staff, plus anyone who actually punched that day - a since-resigned
+    // employee still belongs on the sheet for the days they worked.
+    $where = ["u.phone IS NOT NULL", "u.role NOT IN ('superadmin','admin','hod','face_operator')",
+              "(u.status = 'Working' OR u.id IN (SELECT user_id FROM attendance WHERE date = ?))"];
+    $args = [$date];
     if ($f['dept'])     { $where[] = 'u.department_id = ?'; $args[] = $f['dept']; }
     if ($f['company'])  { $where[] = 'u.company = ?';  $args[] = $f['company']; }
     if ($f['location']) { $where[] = 'u.location = ?'; $args[] = $f['location']; }
-    $people = q('SELECT u.id, u.name, u.employee_id, u.week_off, u.status, u.date_of_exit, u.location, d.name dept_name
+    $people = q('SELECT u.id, u.name, u.employee_id, u.week_off, u.status, u.date_of_joining, u.date_of_exit, u.location, d.name dept_name
                  FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE ' . implode(' AND ', $where) . ' ORDER BY d.name, u.name', $args)->fetchAll();
     $grid = att_grid($people, $date, $date);
     $punches = [];
@@ -38,6 +42,14 @@ if ($userId) {
     $count = array_count_values(array_map(fn($p) => $grid[$p['id']][$date]['code'], $people));
     if ($f['show'] === 'present') $people = array_filter($people, fn($p) => isset($punches[$p['id']]));
     if ($f['show'] === 'absent')  $people = array_filter($people, fn($p) => $grid[$p['id']][$date]['code'] === 'A');
+
+    // The counters above the table stay for the whole day; only the rows are paged.
+    $per   = 20;
+    $total = count($people);
+    $pages = max(1, (int) ceil($total / $per));
+    $page  = min($pages, max(1, (int) get_('page', 1)));
+    $people = array_slice(array_values($people), ($page - 1) * $per, $per);
+    $qs = fn(array $o) => http_build_query(array_filter(array_merge(['date' => $date], $f, $o), fn($x) => $x !== '' && $x !== 0));
     $pageTitle = 'Attendance';
 }
 
@@ -51,10 +63,13 @@ $chip = fn($c) => '<span class="inline-block min-w-[2rem] rounded px-1.5 py-0.5 
 $punchRow = function (array $p) {
     // A selfie thumbnail with its time under it; clicking opens the full photo.
     $shot = function (?string $file, ?string $t, string $label) {
-        $img = $file
+        $missing = $file && !att_selfie_path($file);   // recorded in the database, but the file never reached this server
+        $img = $file && !$missing
             ? '<a target="_blank" href="' . url('att-file.php?selfie=' . urlencode($file)) . '"><img loading="lazy" alt="' . $label . ' photo" src="'
               . url('att-file.php?selfie=' . urlencode($file)) . '" class="h-12 w-12 rounded-md border border-zinc-200 object-cover hover:ring-2 hover:ring-brand-400"></a>'
-            : '<span class="grid h-12 w-12 place-items-center rounded-md border border-dashed border-zinc-200 text-[10px] text-zinc-300">No photo</span>';
+            : ($missing
+                ? '<span title="' . e($file) . ' is not in uploads/hrms/selfies on this server" class="grid h-12 w-12 place-items-center rounded-md border border-dashed border-amber-300 bg-amber-50 text-center text-[10px] leading-tight text-amber-600">Photo missing</span>'
+                : '<span class="grid h-12 w-12 place-items-center rounded-md border border-dashed border-zinc-200 text-[10px] text-zinc-300">No photo</span>');
         return '<div class="text-center">' . $img . '<p class="mt-0.5 text-[10px] text-zinc-400">' . $label . ' ' . att_time($t) . '</p></div>';
     };
     return '<div class="flex flex-wrap items-center gap-3 text-[12px]">'
@@ -108,6 +123,10 @@ $stats = ['P' => 'Present', 'A' => 'Absent', 'L' => 'Leave', 'WO' => 'Week off',
       <div class="rounded-lg border border-zinc-200 bg-white p-3"><p class="text-lg font-semibold tabular-nums text-zinc-900"><?= $count[$k] ?? 0 ?></p><p class="text-[11px] text-zinc-500"><?= $l ?></p></div>
     <?php endforeach; ?>
   </div>
+  <p class="text-[11px] text-zinc-500">
+    <b><?= date('D, j M Y', strtotime($date)) ?></b> runs 6:00 AM to 6:00 AM the next morning — a night shift that ends after midnight counts as this one day.
+    <b>Absent</b> is the fallback: no punch, no week off, no on-duty, no comp-off, no approved leave and no holiday. Days before someone joined are left blank.
+  </p>
   <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
     <div class="overflow-x-auto">
     <table class="w-full text-left text-[13px]">
@@ -129,6 +148,16 @@ $stats = ['P' => 'Present', 'A' => 'Absent', 'L' => 'Leave', 'WO' => 'Week off',
       </tbody>
     </table>
     </div>
+    <?php if ($pages > 1): ?>
+      <div class="flex items-center justify-between border-t border-zinc-100 px-4 py-2 text-[12px] text-zinc-500">
+        <span><?= ($page - 1) * $per + 1 ?>–<?= min($page * $per, $total) ?> of <?= $total ?> employees</span>
+        <span class="flex items-center gap-1">
+          <?php if ($page > 1): ?><a href="?<?= $qs(['page' => $page - 1]) ?>" class="<?= ATT_BTN2 ?> !py-1">Previous</a><?php endif; ?>
+          <span class="px-2">Page <?= $page ?> of <?= $pages ?></span>
+          <?php if ($page < $pages): ?><a href="?<?= $qs(['page' => $page + 1]) ?>" class="<?= ATT_BTN2 ?> !py-1">Next</a><?php endif; ?>
+        </span>
+      </div>
+    <?php endif; ?>
   </div>
 <?php endif; ?>
 </div>

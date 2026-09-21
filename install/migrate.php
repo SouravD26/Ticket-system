@@ -21,6 +21,7 @@ try {
         'acknowledged_at' => 'DATETIME DEFAULT NULL',
         'reopen_count'    => 'INT UNSIGNED NOT NULL DEFAULT 0',
         'location'        => 'VARCHAR(80) DEFAULT NULL',
+        'trained_before'  => "ENUM('yes','no') DEFAULT NULL",
     ];
     foreach ($add as $name => $def) {
         if (isset($cols[$name])) { $log[] = "tickets.$name already present."; continue; }

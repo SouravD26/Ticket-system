@@ -316,6 +316,7 @@ function attachment_list(array $items): string
           'Email'      => $ticket['requester_email'],
           'Department' => $ticket['dept_name'] ?? '—',
           'Location'   => ($ticket['location'] ?? '') ?: '—',
+          'Trained before' => ($ticket['trained_before'] ?? '') ? ucfirst($ticket['trained_before']) : '—',
           'Assignee'   => $ticket['agent_name'] ?? 'Unassigned',
           'Assigned'   => $ticket['assigned_at'] ? date('M j, Y', strtotime($ticket['assigned_at'])) : '—',
           'Completed'  => $ticket['completed_at'] ? date('M j, Y', strtotime($ticket['completed_at'])) : '—',
