@@ -32,3 +32,13 @@ date_default_timezone_set('Asia/Kolkata');
 
 error_reporting(E_ALL);
 ini_set('display_errors', '1'); // set to '0' on live hosting
+
+// Mobile API v1 diagnostics.
+//
+// Empty means the API never discloses internals: a failure is a plain
+// "Internal server error." with the detail written to the PHP error log.
+// Set a long random string here to let a caller holding it see the real
+// message, file and line:
+//     /api/v1/index.php?route=attendance/today&debug=<key>
+// Clear it again once the problem is found.
+define('API_DEBUG_KEY', '');

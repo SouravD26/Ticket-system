@@ -11,6 +11,9 @@
  */
 declare(strict_types=1);
 
+/** How many photos one request may carry. */
+const TICKET_MAX_PHOTOS = 5;
+
 const TICKET_STATUS  = ['open' => 'Open', 'pending' => 'In Progress', 'resolved' => 'Completed', 'closed' => 'Closed'];
 /** Statuses IT staff may set themselves. */
 const TICKET_IT_SET  = ['open', 'pending', 'resolved'];
@@ -20,26 +23,9 @@ const TICKET_PRIO    = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 
 function tickets_can_raise(array $u): bool {
     return in_array($u['role'], ['superadmin', 'employee', 'hr'], true);
 }
-/**
- * IT and the Super Admin do the work. IT is what the HRMS says it is - the
- * IT department or an IT designation - so there is no separate account to keep,
- * matching it_staff() on the web side.
- */
-function tickets_can_work(array $u): bool {
-    if (in_array($u['role'], ['superadmin', 'it'], true)) return true;
-    return ($u['department'] ?? '') === 'IT' || tickets_it_designation((string)($u['designation'] ?? ''));
-}
+// tickets_can_work() and tickets_it_designation() now live in core.php,
+// so auth/me can report is_it_staff to the app.
 
-/** Designations that mean "this person fixes IT problems", matched on whole words. */
-function tickets_it_designation(string $designation): bool {
-    $words = ['IT', 'EDP', 'System', 'Systems', 'Network', 'Hardware', 'Software',
-              'Developer', 'Programmer', 'Technical', 'Tech', 'Support', 'Helpdesk'];
-    $padded = ' ' . strtolower(str_replace(['.', '-', '/'], ' ', $designation)) . ' ';
-    foreach ($words as $w) {
-        if (strpos($padded, ' ' . strtolower($w) . ' ') !== false) return true;
-    }
-    return false;
-}
 /** Admin is a reporting role: it reads tickets but never writes. */
 function tickets_read_only(array $u): bool {
     return $u['role'] === 'admin';
@@ -49,7 +35,11 @@ function tickets_read_only(array $u): bool {
 function tickets_scope(array $u): array {
     $uid = (int)$u['id'];
     if (in_array($u['role'], ['superadmin', 'admin'], true)) return ['1', '', []];
-    if ($u['role'] === 'it') return ['(t.assigned_to = ? OR t.user_id = ?)', 'ii', [$uid, $uid]];
+    // Anyone who does ticket work sees what is assigned to them as well as
+    // what they raised. This has to ask tickets_can_work() rather than test
+    // role === 'it': IT staff here are the IT *department*, whose accounts are
+    // ordinary employees, and they could not see their own assigned tickets.
+    if (tickets_can_work($u)) return ['(t.assigned_to = ? OR t.user_id = ?)', 'ii', [$uid, $uid]];
     return ['t.user_id = ?', 'i', [$uid]];
 }
 
@@ -105,6 +95,11 @@ function shape_ticket(array $t, array $u = []): array {
         'can_acknowledge' => $mine && $t['status'] === 'resolved',
         'can_reraise'     => $mine && in_array($t['status'], ['resolved', 'closed'], true),
         'can_update'      => !empty($u) && tickets_can_work($u),
+        // Assigning, priority and department are the Super Admin's call; IT
+        // staff move the status and reply. Sending these means the app never
+        // has to guess which controls to draw.
+        'can_assign'        => !empty($u) && ($u['role'] ?? '') === 'superadmin',
+        'settable_statuses' => (!empty($u) && tickets_can_work($u)) ? TICKET_IT_SET : [],
     ];
 }
 
@@ -141,6 +136,25 @@ function tickets_index(mysqli $conn): void {
     } elseif ($status === 'active') {          // everything not yet closed
         $where .= " AND t.status <> 'closed'";
     }
+    // Who the ticket sits with: the IT app's "Assigned to me" section, and the
+    // Super Admin's view of what nobody has picked up yet.
+    $assigned = strtolower((string)param('assigned', ''));
+    if ($assigned === 'me') {
+        $where   .= ' AND t.assigned_to = ?';
+        $types   .= 'i';
+        $params[] = (int)$user['id'];
+    } elseif ($assigned === 'unassigned' || $assigned === 'none') {
+        $where .= ' AND t.assigned_to IS NULL';
+    } elseif ($assigned === 'raised' || $assigned === 'mine') {
+        $where   .= ' AND t.user_id = ?';
+        $types   .= 'i';
+        $params[] = (int)$user['id'];
+    } elseif (ctype_digit($assigned) && (int)$assigned > 0) {
+        $where   .= ' AND t.assigned_to = ?';
+        $types   .= 'i';
+        $params[] = (int)$assigned;
+    }
+
     $q = (string)param('search', '');
     if ($q !== '') {
         $where   .= ' AND (t.subject LIKE ? OR t.code LIKE ?)';
@@ -203,7 +217,8 @@ function tickets_show(mysqli $conn): void {
     );
 
     ok([
-        'ticket'   => shape_ticket($ticket, $user),
+        'ticket'      => shape_ticket($ticket, $user),
+        'attachments' => tickets_attachments($conn, (int)$ticket['id']),
         'replies'  => array_map(static fn(array $r): array => [
             'id'          => (int)$r['id'],
             'message'     => $r['message'],
@@ -221,6 +236,60 @@ function tickets_show(mysqli $conn): void {
 }
 
 /** POST tickets/create { subject, body, location, trained_before } */
+/**
+ * Stores base64 photos sent by the app against a ticket or one of its replies,
+ * in the same table and folder the web form writes to.
+ *
+ * Accepts a JSON array or a single string. Returns how many were kept.
+ */
+function tickets_store_photos(mysqli $conn, int $ticketId, ?int $replyId, $photos): int {
+    if ($photos === null || $photos === '') return 0;
+    if (is_string($photos)) $photos = [$photos];
+    if (!is_array($photos)) return 0;
+
+    $saved = 0;
+    foreach (array_slice($photos, 0, TICKET_MAX_PHOTOS) as $i => $raw) {
+        if (!is_string($raw) || $raw === '') continue;
+
+        $file = store_base64_image($raw, UPLOAD_DIR);
+        if ($file === null) {
+            error_log('API v1: ticket ' . $ticketId . ' photo ' . $i . ' rejected');
+            continue;
+        }
+
+        $name = 'photo_' . ($i + 1) . '.' . pathinfo($file['stored'], PATHINFO_EXTENSION);
+        $stmt = $conn->prepare(
+            "INSERT INTO attachments (ticket_id, reply_id, original_name, stored_name, mime, size_bytes)
+             VALUES (?,?,?,?,?,?)"
+        );
+        $stmt->bind_param('iisssi', $ticketId, $replyId, $name, $file['stored'], $file['mime'], $file['size']);
+        $stmt->execute();
+        $stmt->close();
+        $saved++;
+    }
+    return $saved;
+}
+
+/** Every attachment on a ticket, as signed links the app can show directly. */
+function tickets_attachments(mysqli $conn, int $ticketId): array {
+    $rows = fetch_all(
+        $conn,
+        "SELECT id, reply_id, original_name, stored_name, mime, size_bytes, created_at
+           FROM attachments WHERE ticket_id = ? ORDER BY id",
+        'i',
+        [$ticketId]
+    );
+    return array_map(static fn(array $a): array => [
+        'id'         => (int)$a['id'],
+        'reply_id'   => $a['reply_id'] !== null ? (int)$a['reply_id'] : null,
+        'name'       => $a['original_name'],
+        'mime'       => $a['mime'],
+        'size_bytes' => (int)$a['size_bytes'],
+        'created_at' => $a['created_at'],
+        'url'        => attachment_url($a['stored_name']),
+    ], $rows);
+}
+
 function tickets_create(mysqli $conn): void {
     require_method('POST');
     $user = auth_user($conn);
@@ -261,7 +330,13 @@ function tickets_create(mysqli $conn): void {
     $stmt->close();
 
     tickets_log($conn, $id, $uid, 'created', 'Ticket opened');
+
+    // Photos are optional and best-effort: a ticket that reached the database
+    // is never lost because an image could not be decoded.
+    $saved = tickets_store_photos($conn, $id, null, param('photos'));
+
     ok(['message' => 'Ticket ' . $code . ' has been created.',
+        'photos_saved' => $saved,
         'ticket'  => shape_ticket(tickets_find($conn, $user, $id), $user)]);
 }
 
@@ -289,9 +364,13 @@ function tickets_reply(mysqli $conn): void {
     $stmt->close();
 
     $conn->query("UPDATE tickets SET updated_at = NOW() WHERE id = $tid");
+
+    // Photos attach to this reply, so the conversation keeps them in order.
+    $saved = tickets_store_photos($conn, $tid, $replyId, param('photos'));
+
     tickets_log($conn, $tid, $uid, 'replied', $internal ? 'Internal note added' : 'Reply added');
 
-    ok(['message' => 'Reply posted.', 'reply_id' => $replyId]);
+    ok(['message' => 'Reply posted.', 'reply_id' => $replyId, 'photos_saved' => $saved]);
 }
 
 /** POST tickets/update { id, status?, priority?, assigned_to?, department_id? } - IT and Super Admin. */

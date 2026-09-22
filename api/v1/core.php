@@ -20,6 +20,21 @@ define('TOKEN_TTL_DAYS', 30);
 require_once APP_ROOT . '/includes/config.php';
 date_default_timezone_set('Asia/Kolkata');
 ini_set('display_errors', '0');
+
+// APP_KEY signs the expiring file links. A deployment whose config predates it
+// would otherwise take down every endpoint that returns a selfie or photo: in
+// PHP 8 an undefined constant is a fatal Error, not a notice, so the failure
+// arrives as an opaque 500 far from its cause.
+//
+// Derive a stable per-install fallback instead. Signing and verifying then
+// still agree with each other, links keep working, and the log says what to
+// fix. Set a real APP_KEY in includes/config.php: the fallback is predictable
+// from values that are not secret.
+if (!defined('APP_KEY')) {
+    error_log('API v1: APP_KEY is not defined in includes/config.php - '
+        . 'falling back to a derived key. Add a random APP_KEY to that file.');
+    define('APP_KEY', hash('sha256', 'hrms-api-v1|' . APP_ROOT . '|' . DB_NAME));
+}
 define('UPLOAD_BASE', UPLOAD_DIR . '/hrms'); // not web-reachable; files go out through files/*
 
 mysqli_report(MYSQLI_REPORT_OFF);
@@ -384,16 +399,67 @@ function hhmm(?int $minutes): ?string {
     return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
 }
 
-/** Normalises one attendance row for the app. */
+/**
+ * Decodes a base64 / data-URI image the app sent and stores it beside the web
+ * form's own uploads, so a ticket raised from a phone is indistinguishable
+ * from one raised in a browser.
+ *
+ * Returns [stored, mime, size], or null when the payload is not a usable
+ * image. Never throws: one bad photo must not take the ticket down with it.
+ */
+function store_base64_image(string $raw, string $dir): ?array {
+    if (preg_match('#^data:([\w/+.-]+);base64,#i', $raw, $m)) {
+        $mime = strtolower($m[1]);
+        $raw  = substr($raw, strlen($m[0]));
+    } else {
+        $mime = '';
+    }
+
+    $bytes = base64_decode(strtr(trim($raw), ' ', '+'), true);
+    if ($bytes === false || $bytes === '') return null;
+    if (strlen($bytes) > MAX_UPLOAD) return null;
+
+    // Trust the bytes over whatever type the client declared.
+    $info = @getimagesizefromstring($bytes);
+    if ($info === false) return null;
+    $mime = $info['mime'] ?? $mime;
+
+    $ext = [
+        'image/jpeg' => 'jpg', 'image/pjpeg' => 'jpg', 'image/png' => 'png',
+        'image/gif'  => 'gif', 'image/webp'  => 'webp',
+    ][$mime] ?? null;
+    if ($ext === null) return null;
+
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true)) return null;
+
+    $stored = bin2hex(random_bytes(16)) . '.' . $ext;
+    if (@file_put_contents($dir . '/' . $stored, $bytes) === false) return null;
+
+    return ['stored' => $stored, 'mime' => $mime, 'size' => strlen($bytes)];
+}
+
+/** Signed, expiring link to a ticket attachment. */
+function attachment_url(?string $stored): ?string {
+    if (!$stored) return null;
+    return signed_file_url('attachments/' . basename($stored));
+}
+
+/**
+ * Normalises one attendance row for the app.
+ *
+ * Every field is read defensively. A column missing from the row - an older
+ * schema, or a SELECT that does not list it - must degrade to null rather than
+ * raise "Undefined array key", which would fail the whole request.
+ */
 function shape_attendance(array $r): array {
     $mins = worked_minutes($r['punch_in'] ?? null, $r['punch_out'] ?? null);
     return [
-        'id'                 => (int)$r['id'],
-        'user_id'            => (int)$r['user_id'],
-        'date'               => $r['date'],
-        'punch_in'           => $r['punch_in'],
-        'punch_out'          => $r['punch_out'],
-        'status'             => $r['status'],
+        'id'                 => isset($r['id']) ? (int)$r['id'] : null,
+        'user_id'            => isset($r['user_id']) ? (int)$r['user_id'] : null,
+        'date'               => $r['date'] ?? null,
+        'punch_in'           => $r['punch_in'] ?? null,
+        'punch_out'          => $r['punch_out'] ?? null,
+        'status'             => $r['status'] ?? null,
         'worked_minutes'     => $mins,
         'worked_hours'       => hhmm($mins),
         'punch_in_location'  => $r['punch_in_location'] ?? null,
@@ -411,6 +477,29 @@ function shape_attendance(array $r): array {
 }
 
 /** Public-safe user object. Never includes password or face_descriptor. */
+/**
+ * Who does ticket work. IT is what the HRMS says it is - the IT department or
+ * an IT designation - so there is no separate account to keep.
+ *
+ * This lives in core so every endpoint can answer it, not just the ticket
+ * routes: the app asks auth/me whether to show its IT section at all.
+ */
+function tickets_it_designation(string $designation): bool {
+    $words = ['IT', 'EDP', 'System', 'Systems', 'Network', 'Hardware', 'Software',
+              'Developer', 'Programmer', 'Technical', 'Tech', 'Support', 'Helpdesk'];
+    $padded = ' ' . strtolower(str_replace(['.', '-', '/'], ' ', $designation)) . ' ';
+    foreach ($words as $w) {
+        if (strpos($padded, ' ' . strtolower($w) . ' ') !== false) return true;
+    }
+    return false;
+}
+
+function tickets_can_work(array $u): bool {
+    if (in_array($u['role'] ?? '', ['superadmin', 'it'], true)) return true;
+    return ($u['department'] ?? '') === 'IT'
+        || tickets_it_designation((string)($u['designation'] ?? ''));
+}
+
 function shape_user(array $u, bool $full = false): array {
     $out = [
         'id'            => (int)$u['id'],
@@ -426,6 +515,9 @@ function shape_user(array $u, bool $full = false): array {
         'week_off'      => $u['week_off'],
         'status'        => $u['status'],
         'profile_photo' => photo_url($u['profile_photo'] ?? null),
+        // Drives the app's IT section; the rules stay on the server.
+        'is_it_staff'   => tickets_can_work($u),
+        'is_superadmin' => ($u['role'] ?? '') === 'superadmin',
     ];
     if ($full) {
         $out += [

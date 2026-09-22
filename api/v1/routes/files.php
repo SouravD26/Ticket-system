@@ -14,11 +14,15 @@ function files_get(mysqli $conn): void {
 
     if ($exp < time()) fail('This link has expired.', 403, 'forbidden');
     if (!hash_equals(hash_hmac('sha256', $path . '|' . $exp, APP_KEY), $sig)) fail('Invalid link.', 403, 'forbidden');
-    if (!preg_match('#^(selfies/\d{4}/\d{2}/\d{2}|profile_photos|employee_photos)/[\w.-]+\.(jpe?g|png|gif|webp)$#i', $path)) {
+    // Ticket attachments sit in the shared uploads folder the web form writes
+    // to, not under uploads/hrms, so they resolve against a different root.
+    if (preg_match('#^attachments/[\w.-]+\.(jpe?g|png|gif|webp)$#i', $path)) {
+        $file = UPLOAD_DIR . '/' . basename($path);
+    } elseif (preg_match('#^(selfies/\d{4}/\d{2}/\d{2}|profile_photos|employee_photos)/[\w.-]+\.(jpe?g|png|gif|webp)$#i', $path)) {
+        $file = UPLOAD_BASE . '/' . $path;
+    } else {
         fail('Not found.', 404, 'not_found');
     }
-
-    $file = UPLOAD_BASE . '/' . $path;
     if (!is_file($file)) fail('Not found.', 404, 'not_found');
 
     header('Content-Type: ' . ((new finfo(FILEINFO_MIME_TYPE))->file($file) ?: 'application/octet-stream'));
