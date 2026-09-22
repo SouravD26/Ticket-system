@@ -105,6 +105,51 @@ function meta_index(mysqli $conn): void {
 }
 
 /** GET meta/health - unauthenticated liveness probe. */
+/**
+ * GET meta/diag - deployment check, no auth.
+ *
+ * Reports which files the server is actually running and which shared helpers
+ * resolve, so a half-finished upload can be identified without shell access.
+ * Reports no credentials and no data: file sizes, PHP version and whether a
+ * function exists. Safe to leave in place, but it is a diagnostic, not an API.
+ */
+function meta_diag(mysqli $conn): void {
+    $files = [];
+    foreach ([
+        'core.php'             => API_ROOT . '/core.php',
+        'index.php'            => API_ROOT . '/index.php',
+        'routes/tickets.php'   => API_ROOT . '/routes/tickets.php',
+        'routes/meta.php'      => API_ROOT . '/routes/meta.php',
+        'includes/config.php'  => APP_ROOT . '/includes/config.php',
+    ] as $label => $path) {
+        $files[$label] = is_file($path)
+            ? ['bytes' => filesize($path), 'modified' => date('Y-m-d H:i:s', (int)filemtime($path))]
+            : ['bytes' => null, 'modified' => null];
+    }
+
+    ok([
+        'php'        => PHP_VERSION,
+        'api_root'   => API_ROOT,
+        'app_root'   => APP_ROOT,
+        'files'      => $files,
+        // Helpers defined in core.php. Anything from routes/tickets.php is
+        // absent here by design: that file only loads for tickets/* routes.
+        'functions'  => [
+            'tickets_can_work'       => function_exists('tickets_can_work'),
+            'tickets_it_designation' => function_exists('tickets_it_designation'),
+            'store_base64_image'     => function_exists('store_base64_image'),
+            'attachment_url'         => function_exists('attachment_url'),
+            // debug_allowed() only exists in the newer index.php.
+            'debug_allowed'          => function_exists('debug_allowed'),
+        ],
+        'constants'  => [
+            'APP_KEY'        => defined('APP_KEY'),
+            'API_DEBUG_KEY'  => defined('API_DEBUG_KEY'),
+        ],
+        'opcache'    => function_exists('opcache_get_status') ? 'available' : 'absent',
+    ]);
+}
+
 function meta_health(mysqli $conn): void {
     $db = false;
     try {

@@ -23,8 +23,34 @@ const TICKET_PRIO    = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 
 function tickets_can_raise(array $u): bool {
     return in_array($u['role'], ['superadmin', 'employee', 'hr'], true);
 }
-// tickets_can_work() and tickets_it_designation() now live in core.php,
-// so auth/me can report is_it_staff to the app.
+/*
+ * tickets_can_work() and tickets_it_designation() live in core.php, so
+ * auth/me can report is_it_staff to the app.
+ *
+ * They are re-declared here behind function_exists() purely so this file still
+ * runs against an older core.php: deployments do not always land both files at
+ * once, and a missing helper is a fatal error that takes every ticket route
+ * down. Keep the two definitions identical.
+ */
+if (!function_exists('tickets_it_designation')) {
+    function tickets_it_designation(string $designation): bool {
+        $words = ['IT', 'EDP', 'System', 'Systems', 'Network', 'Hardware', 'Software',
+                  'Developer', 'Programmer', 'Technical', 'Tech', 'Support', 'Helpdesk'];
+        $padded = ' ' . strtolower(str_replace(['.', '-', '/'], ' ', $designation)) . ' ';
+        foreach ($words as $w) {
+            if (strpos($padded, ' ' . strtolower($w) . ' ') !== false) return true;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('tickets_can_work')) {
+    function tickets_can_work(array $u): bool {
+        if (in_array($u['role'] ?? '', ['superadmin', 'it'], true)) return true;
+        return ($u['department'] ?? '') === 'IT'
+            || tickets_it_designation((string)($u['designation'] ?? ''));
+    }
+}
 
 /** Admin is a reporting role: it reads tickets but never writes. */
 function tickets_read_only(array $u): bool {
