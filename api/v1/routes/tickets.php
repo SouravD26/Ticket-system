@@ -536,3 +536,200 @@ function tickets_locations(mysqli $conn): void {
         'statuses'  => TICKET_STATUS,
         'priorities'=> TICKET_PRIO]);
 }
+
+/**
+ * GET tickets/dashboard - what the IT dashboard needs in one call: the counts,
+ * the one queue this person is expected to act on next, and the latest movement.
+ * Mirrors dashboard.php on the web.
+ */
+function tickets_dashboard(mysqli $conn): void {
+    $user = auth_user($conn);
+    $uid  = (int)$user['id'];
+    [$where, $types, $params] = tickets_scope($user);
+
+    $c = fetch_one(
+        $conn,
+        "SELECT COUNT(*) total,
+                SUM(t.status = 'open')     open_c,
+                SUM(t.status = 'pending')  pending_c,
+                SUM(t.status = 'resolved') resolved_c,
+                SUM(t.status = 'closed')   closed_c,
+                SUM(t.priority IN ('high','urgent') AND t.status <> 'closed') hot_c
+           FROM tickets t WHERE $where",
+        $types,
+        $params
+    ) ?: [];
+
+    $select = "SELECT t.*, u.name AS requester_name, u.employee_id AS requester_code,
+                      a.name AS agent_name, d.name AS dept_name
+                 FROM tickets t
+                 JOIN users u ON u.id = t.user_id
+                 LEFT JOIN users a ON a.id = t.assigned_to
+                 LEFT JOIN departments d ON d.id = t.department_id";
+
+    /* The queue that matters to this caller:
+         Super Admin / Admin - nobody has been given it yet
+         IT                  - what is on their desk right now
+         everyone else       - work marked complete, waiting for them to sign off */
+    if (in_array($user['role'], ['superadmin', 'admin'], true)) {
+        $queueTitle = 'Waiting to be assigned';
+        $queue = fetch_all($conn, "$select WHERE t.assigned_to IS NULL AND t.status <> 'closed'
+                                    ORDER BY t.created_at ASC LIMIT 50");
+    } elseif (tickets_can_work($user)) {
+        $queueTitle = 'On your desk';
+        $queue = fetch_all($conn, "$select WHERE t.assigned_to = ? AND t.status IN ('open','pending')
+                                    ORDER BY FIELD(t.priority,'urgent','high','medium','low'), t.created_at ASC LIMIT 50",
+                           'i', [$uid]);
+    } else {
+        $queueTitle = 'Waiting for your acknowledgement';
+        $queue = fetch_all($conn, "$select WHERE t.user_id = ? AND t.status = 'resolved'
+                                    ORDER BY t.completed_at DESC LIMIT 50", 'i', [$uid]);
+    }
+
+    $recent = fetch_all($conn, "$select WHERE $where ORDER BY t.updated_at DESC LIMIT 8", $types, $params);
+
+    ok([
+        'counts' => [
+            'total'     => (int)($c['total'] ?? 0),
+            'open'      => (int)($c['open_c'] ?? 0),
+            'pending'   => (int)($c['pending_c'] ?? 0),
+            'resolved'  => (int)($c['resolved_c'] ?? 0),
+            'closed'    => (int)($c['closed_c'] ?? 0),
+            'high_open' => (int)($c['hot_c'] ?? 0),
+        ],
+        'queue'      => ['title'   => $queueTitle,
+                         'tickets' => array_map(static fn(array $t): array => shape_ticket($t, $user), $queue)],
+        'recent'     => array_map(static fn(array $t): array => shape_ticket($t, $user), $recent),
+        'can_assign' => $user['role'] === 'superadmin',
+        'can_work'   => tickets_can_work($user),
+    ]);
+}
+
+/**
+ * POST tickets/assign { id, assigned_to, priority? } - hand a ticket to an IT
+ * person, or take it back with assigned_to = 0. Super Admin only, as on the web.
+ */
+function tickets_assign(mysqli $conn): void {
+    require_method('POST');
+    $user = auth_user($conn);
+    if ($user['role'] !== 'superadmin') fail('Only the Super Admin assigns tickets.', 403, 'forbidden');
+
+    $ticket = tickets_find($conn, $user, param_int('id'));
+    $agent  = param_int('assigned_to');
+    $was    = $ticket['assigned_to'] !== null ? (int)$ticket['assigned_to'] : 0;
+
+    if ($agent && !tickets_is_it_staff($conn, $agent)) {
+        fail('Tickets can only be assigned to IT staff. Call tickets/it_staff for the list.', 422, 'validation_error');
+    }
+
+    $priority = (string)param('priority', $ticket['priority']);
+    if (!isset(TICKET_PRIO[$priority])) fail('Unknown priority.', 422, 'validation_error');
+
+    // assigned_at marks when it landed on somebody's desk, so it only moves on a change.
+    $stamp = $agent === 0 ? 'NULL' : ($agent !== $was ? 'NOW()' : 'assigned_at');
+    $tid   = (int)$ticket['id'];
+    $agentOrNull = $agent ?: null;
+
+    $stmt = $conn->prepare("UPDATE tickets SET assigned_to = ?, priority = ?, assigned_at = $stamp WHERE id = ?");
+    $stmt->bind_param('isi', $agentOrNull, $priority, $tid);
+    if (!$stmt->execute()) { $stmt->close(); fail('Could not assign the ticket.', 500, 'db_error'); }
+    $stmt->close();
+
+    if ($agent !== $was) {
+        $name = $agent ? (string)fetch_value($conn, "SELECT name FROM users WHERE id = ?", 'i', [$agent], '?') : 'nobody';
+        tickets_log($conn, $tid, (int)$user['id'], 'assigned', ($was ? 'Re-assigned to ' : 'Assigned to ') . $name);
+    }
+    if ($priority !== $ticket['priority']) {
+        tickets_log($conn, $tid, (int)$user['id'], 'priority', 'Priority -> ' . TICKET_PRIO[$priority]);
+    }
+
+    ok(['message' => $agent ? 'Ticket assigned.' : 'Ticket returned to the queue.',
+        'ticket'  => shape_ticket(tickets_find($conn, $user, $tid), $user)]);
+}
+
+/** The assignee records what they did; the Super Admin may too. */
+function tickets_can_log_work(array $user, array $ticket): bool {
+    return $user['role'] === 'superadmin'
+        || (tickets_can_work($user) && (int)$ticket['assigned_to'] === (int)$user['id']);
+}
+
+/** GET tickets/worklog?id= - the work recorded against one ticket. */
+function tickets_worklog(mysqli $conn): void {
+    $user   = auth_user($conn);
+    $ticket = tickets_find($conn, $user, param_int('id'));
+    $rows   = fetch_all(
+        $conn,
+        "SELECT w.id, w.work_date, w.summary, w.details, w.hours, w.created_at, w.user_id, u.name AS author
+           FROM ticket_work_logs w JOIN users u ON u.id = w.user_id
+          WHERE w.ticket_id = ? ORDER BY w.work_date DESC, w.id DESC",
+        'i',
+        [(int)$ticket['id']]
+    );
+    ok([
+        'entries' => array_map(static fn(array $r): array => [
+            'id'      => (int)$r['id'],  'work_date' => $r['work_date'], 'summary' => $r['summary'],
+            'details' => $r['details'],  'hours'     => (float)$r['hours'],
+            'user_id' => (int)$r['user_id'], 'author' => $r['author'], 'created_at' => $r['created_at'],
+        ], $rows),
+        'total_hours' => round(array_sum(array_map(static fn(array $r): float => (float)$r['hours'], $rows)), 2),
+        'can_add'     => tickets_can_log_work($user, $ticket),
+    ]);
+}
+
+/** POST tickets/log_work { id, summary, work_date?, hours?, details? } */
+function tickets_log_work(mysqli $conn): void {
+    require_method('POST');
+    $user   = auth_user($conn);
+    $ticket = tickets_find($conn, $user, param_int('id'));
+    if (!tickets_can_log_work($user, $ticket)) {
+        fail('Only the person the ticket is assigned to records work on it.', 403, 'forbidden');
+    }
+
+    $in      = require_params(['summary']);
+    $summary = mb_substr((string)$in['summary'], 0, 200);
+    if (mb_strlen($summary) < 3) fail('Describe the work in at least 3 characters.', 422, 'validation_error');
+
+    $date = (string)param('work_date', date('Y-m-d'));
+    if (!valid_date($date) || $date > date('Y-m-d')) {
+        fail('Pick a valid work date - future dates are not allowed.', 422, 'validation_error');
+    }
+    $hours   = max(0.0, min(24.0, (float)param('hours', 0)));
+    $d       = param('details');
+    $details = ($d !== null && $d !== '') ? (string)$d : null;
+    $tid     = (int)$ticket['id'];
+    $uid     = (int)$user['id'];
+
+    $stmt = $conn->prepare("INSERT INTO ticket_work_logs (ticket_id, user_id, work_date, summary, details, hours)
+                            VALUES (?,?,?,?,?,?)");
+    $stmt->bind_param('iisssd', $tid, $uid, $date, $summary, $details, $hours);
+    if (!$stmt->execute()) { $stmt->close(); fail('Could not save the work entry.', 500, 'db_error'); }
+    $id = (int)$conn->insert_id;
+    $stmt->close();
+
+    $conn->query("UPDATE tickets SET updated_at = NOW() WHERE id = $tid");
+    tickets_log($conn, $tid, $uid, 'work_logged', 'Work logged: ' . mb_substr($summary, 0, 180));
+
+    ok(['message' => 'Work entry saved.', 'id' => $id]);
+}
+
+/** POST tickets/delete_work { id } - authors remove their own; the Super Admin any. */
+function tickets_delete_work(mysqli $conn): void {
+    require_method('POST', 'DELETE');
+    $user  = auth_user($conn);
+    $entry = param_int('id');
+    if (!$entry) fail('Pass the work entry id.', 422, 'validation_error');
+
+    $sql   = "DELETE FROM ticket_work_logs WHERE id = ?";
+    $types = 'i';
+    $args  = [$entry];
+    if ($user['role'] !== 'superadmin') { $sql .= " AND user_id = ?"; $types .= 'i'; $args[] = (int)$user['id']; }
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$args);
+    $stmt->execute();
+    $gone = $stmt->affected_rows;
+    $stmt->close();
+
+    if (!$gone) fail('That work entry is not yours to remove.', 403, 'forbidden');
+    ok(['message' => 'Work entry removed.']);
+}

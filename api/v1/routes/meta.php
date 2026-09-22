@@ -47,6 +47,11 @@ function api_endpoint_map(): array {
             'POST tickets/reraise'       => 'id, reason? -> still broken, back to the queue',
             'GET  tickets/locations'     => 'location list, statuses and priorities for the form',
             'GET  tickets/it_staff'      => 'employees a ticket may be assigned to (HRMS IT department / designation)',
+            'GET  tickets/dashboard'     => 'counts + the queue for this role + recent movement (the IT dashboard)',
+            'POST tickets/assign'        => 'id, assigned_to (0 to unassign), priority? - Super Admin',
+            'GET  tickets/worklog'       => 'id -> work recorded against the ticket + total hours',
+            'POST tickets/log_work'      => 'id, summary, work_date?, hours?, details? - the assignee',
+            'POST tickets/delete_work'   => 'id of the work entry',
         ],
         'employees' => [
             'GET  employees'             => 'directory: search, department, company, location, page',
