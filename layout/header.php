@@ -90,6 +90,21 @@ tailwind.config = {
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:#d4d4d8;border-radius:99px;border:2px solid transparent;background-clip:content-box}
   ::-webkit-scrollbar-thumb:hover{background:#a1a1aa;background-clip:content-box;border:2px solid transparent}
+  /* A form control's intrinsic minimum is its content - a <select> is as wide as
+     its longest option, an <input> as wide as its size attribute - and inside a
+     flex or grid item that minimum wins over any width class, pushing the whole
+     page sideways on a phone. Letting controls shrink fixes it everywhere at once. */
+  select,input,textarea{min-width:0}
+  /* A <select> is otherwise as wide as its longest option ("Ishwar Kumar
+     Srivastav - Employee"), and a date field carries the width of its own
+     spinner; both overshoot a narrow screen. Cap them at the space they are in. */
+  select,input,textarea{max-width:100%}
+  /* A flex or grid item refuses to shrink below its own content unless told it
+     may. A filter bar holding a <select> of full employee names would otherwise
+     set the width of the page it sits on. */
+  main [class~="flex"] > *, main [class~="grid"] > *{min-width:0}
+  /* Nothing may drag the page wider than the screen. */
+  img,svg,video,table{max-width:100%}
   input[type=checkbox],input[type=radio]{accent-color:#0d9488}
   input[type=date]::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
   input[type=date]::-webkit-calendar-picker-indicator:hover{opacity:1}
@@ -107,7 +122,9 @@ tailwind.config = {
 <?php if (is_logged_in()): ?>
 <div class="flex min-h-screen">
   <!-- Sidebar -->
-  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-60 -translate-x-full border-r border-zinc-200 bg-white transition-transform lg:translate-x-0">
+  <!-- Tapping the dimmed page, or Escape, closes the drawer on phones and tablets. -->
+  <div id="sidebarBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 z-30 hidden bg-zinc-900/40 lg:hidden"></div>
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-60 max-w-[85vw] -translate-x-full border-r border-zinc-200 bg-white transition-transform lg:translate-x-0">
     <div class="flex h-14 items-center gap-2.5 border-b border-zinc-200 px-4">
       <div class="grid h-7 w-7 place-items-center rounded-md bg-brand-500 text-[13px] font-semibold text-white">H</div>
       <span class="text-sm font-semibold tracking-tight text-zinc-900"><?= APP_NAME ?></span>
@@ -142,18 +159,39 @@ tailwind.config = {
     </div>
   </aside>
 
-  <div class="flex min-h-screen flex-1 flex-col lg:ml-60">
-    <header class="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-zinc-200 bg-white/90 px-4 backdrop-blur sm:px-6">
-      <button onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full')" class="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-50 lg:hidden">
+  <!-- min-w-0: a flex item will not shrink below its content's own minimum, so
+       without this one wide table stretches the whole page instead of scrolling
+       inside its own box. -->
+  <div class="flex min-h-screen min-w-0 flex-1 flex-col lg:ml-60">
+    <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-zinc-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+      <button onclick="toggleSidebar()" aria-label="Menu" aria-controls="sidebar" class="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-50 lg:hidden">
         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
       <h1 class="text-[13px] font-semibold text-zinc-900"><?= e($pageTitle) ?></h1>
       <div class="ml-auto flex items-center gap-2">
         <?php if (can_raise_tickets()): ?>
-          <a href="<?= url('ticket-new.php') ?>" class="hidden rounded-md bg-brand-500 px-3 py-1.5 text-[13px] font-medium text-white shadow-sm transition hover:bg-brand-600 sm:inline-block">New Ticket</a>
+          <a href="<?= url('ticket-new.php') ?>" title="New ticket"
+             class="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-2.5 py-1.5 text-[13px] font-medium text-white shadow-sm transition hover:bg-brand-600 sm:px-3">
+            <svg class="h-4 w-4 sm:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+            <span class="hidden sm:inline">New Ticket</span>
+          </a>
         <?php endif; ?>
       </div>
     </header>
+
+    <script>
+      /* The sidebar is a drawer under lg and a fixed column above it. */
+      function toggleSidebar(open) {
+        var bar = document.getElementById('sidebar'), back = document.getElementById('sidebarBackdrop');
+        if (open === undefined) open = bar.classList.contains('-translate-x-full');
+        bar.classList.toggle('-translate-x-full', !open);
+        back.classList.toggle('hidden', !open);
+        document.body.classList.toggle('overflow-hidden', open);
+      }
+      addEventListener('keydown', function (e) { if (e.key === 'Escape') toggleSidebar(false); });
+      /* Coming back to a wide window must not leave the drawer state behind. */
+      addEventListener('resize', function () { if (innerWidth >= 1024) toggleSidebar(false); });
+    </script>
 
     <main class="flex-1 p-4 sm:p-6">
       <?php foreach ((array)flash() as $f):

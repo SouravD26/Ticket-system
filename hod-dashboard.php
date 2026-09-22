@@ -150,6 +150,7 @@ $lbl = 'mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-40
     <!-- Department split, only for "All departments" -->
     <section class="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
       <h3 class="border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5 text-[13px] font-semibold text-zinc-900">By department</h3>
+      <div class="overflow-x-auto">
       <table class="w-full text-left text-[13px]">
         <thead class="text-[11px] uppercase tracking-wider text-zinc-400"><tr>
           <th class="px-4 py-2 font-medium">Department</th><th class="px-2 py-2 text-right font-medium">Raised</th>
@@ -165,6 +166,7 @@ $lbl = 'mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-40
         <?php endforeach; ?>
         </tbody>
       </table>
+      </div>
     </section>
     <?php endif; ?>
   </div>
