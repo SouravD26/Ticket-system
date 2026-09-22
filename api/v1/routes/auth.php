@@ -15,17 +15,29 @@ function auth_login(mysqli $conn): void {
         fail('Phone and password are required.', 422, 'validation_error');
     }
 
-    // Login by phone, employee code or email - whichever the app sends.
-    $user = fetch_one(
+    /* Login by phone, employee ID or email - whichever the app sends. HRMS employee
+       IDs are not unique (the same number is held by several people), so every match
+       is considered and the password decides which account it is. */
+    $candidates = fetch_all(
         $conn,
         "SELECT u.*, " . DEPT_SQL . " AS department FROM users u
-          WHERE u.phone = ? OR u.employee_id = ? OR u.email = ? ORDER BY (u.phone = ?) DESC LIMIT 1",
+          WHERE u.phone = ? OR u.employee_id = ? OR u.email = ?
+          ORDER BY (u.phone = ?) DESC, u.is_active DESC, u.id",
         'ssss',
         [$identifier, $identifier, $identifier, $identifier]
     );
+    $matches = array_values(array_filter(
+        $candidates,
+        static fn(array $c): bool => password_verify($password, (string)$c['password'])
+    ));
+    $user = $matches[0] ?? null;
 
+    if (count($matches) > 1) {
+        fail('More than one account matches that employee ID and password. Sign in with your mobile number, and ask HR to correct the duplicate employee ID.',
+             409, 'ambiguous_identifier');
+    }
     // Same message either way so the endpoint cannot be used to enumerate users.
-    if (!$user || !password_verify($password, (string)$user['password'])) {
+    if (!$user) {
         fail('Invalid phone number or password.', 401, 'invalid_credentials');
     }
     if (($user['status'] ?? '') === 'Resign' || empty($user['is_active'])) {

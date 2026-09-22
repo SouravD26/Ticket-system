@@ -25,7 +25,7 @@ if ($userId) {
 } else {
     /* ---------- everyone, one day ---------- */
     $date = strtotime(get_('date')) ? date('Y-m-d', strtotime(get_('date'))) : att_workday();
-    $f = ['dept' => (int) get_('dept'), 'company' => get_('company'), 'location' => get_('location'), 'show' => get_('show', 'all')];
+    $f = ['dept' => dept_filter_id(get_('dept')), 'company' => get_('company'), 'location' => get_('location'), 'show' => get_('show', 'all')];
     // Working staff, plus anyone who actually punched that day - a since-resigned
     // employee still belongs on the sheet for the days they worked.
     $where = ["u.phone IS NOT NULL", "u.role NOT IN ('superadmin','admin','hod','face_operator')",

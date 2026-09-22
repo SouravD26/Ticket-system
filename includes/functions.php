@@ -71,7 +71,20 @@ function role(): string       { return user()['role'] ?? 'guest'; }
  */
 function is_super(): bool    { return role() === 'superadmin'; }
 function is_admin(): bool    { return role() === 'admin'; }
-function is_it(): bool       { return role() === 'it'; }
+/**
+ * IT is what the HRMS says it is: the old role = 'it', or an employee whose
+ * department or designation puts them in IT (see it_staff()). Cached per request,
+ * because every permission check on the page asks.
+ */
+function is_it(): bool
+{
+    static $yes = null;
+    if ($yes === null) {
+        $me  = user();
+        $yes = $me !== null && ($me['role'] === 'it' || is_it_staff((int) $me['id']));
+    }
+    return $yes;
+}
 function is_employee(): bool { return role() === 'employee'; }
 function is_hr(): bool       { return role() === 'hr'; }
 
@@ -294,6 +307,15 @@ function ticket_scope(string $a = 't'): array
  * read it from here, so what the Departments page holds is what every dropdown
  * in the app offers - there is no second list anywhere.
  */
+/** A department filter value: the select sends an id, older links send a name. */
+function dept_filter_id($value): int
+{
+    $value = trim((string) $value);
+    if ($value === '') return 0;
+    if (ctype_digit($value)) return (int) $value;
+    return (int) (q('SELECT id FROM departments WHERE name = ? LIMIT 1', [$value])->fetchColumn() ?: 0);
+}
+
 function all_departments(): array
 {
     static $rows = null;
@@ -303,10 +325,17 @@ function all_departments(): array
     return $rows;
 }
 
-/** Active IT accounts, in the order they should appear in an assignee picker. */
+/** The assignee picker: IT staff, as the HRMS employee records define them. */
 function it_agents(): array
 {
-    return q('SELECT id, name, username FROM users WHERE role = "it" AND is_active = 1 ORDER BY name')->fetchAll();
+    return it_staff();
+}
+
+/** May this employee be handed a ticket? */
+function is_it_staff(int $id): bool
+{
+    foreach (it_staff() as $s) if ((int) $s['id'] === $id) return true;
+    return false;
 }
 
 /**
@@ -422,6 +451,34 @@ function reraise_ticket(array $ticket, string $reason = ''): void
     log_activity((int) $ticket['id'], 'reopened',
         'Requester marked it not resolved' . ($reason !== '' ? ' - ' . mb_substr($reason, 0, 160) : '')
         . ' - returned to the assignment queue');
+}
+
+/** Designations that mean "this person fixes IT problems". */
+const IT_DESIGNATION_WORDS = ['IT', 'EDP', 'System', 'Systems', 'Network', 'Hardware', 'Software',
+                              'Developer', 'Programmer', 'Technical', 'Tech', 'Support', 'Helpdesk'];
+
+/**
+ * The IT people a ticket may be assigned to, read from the HRMS employee record
+ * rather than a separate account: anyone in the IT department, anyone whose
+ * designation names an IT job, and whoever still carries the old role = 'it'.
+ *
+ * The designation is matched on whole words - padded, with punctuation turned
+ * into spaces - because REGEXP word boundaries are spelled one way on MySQL 5.7
+ * and MariaDB and another on MySQL 8. Whole words keep "Video Editor" out of IT.
+ */
+function it_staff(): array
+{
+    $designation = "CONCAT(' ', REPLACE(REPLACE(REPLACE(COALESCE(u.designation, ''), '.', ' '), '-', ' '), '/', ' '), ' ')";
+    $words = implode(' OR ', array_map(fn($w) => "$designation LIKE ?", IT_DESIGNATION_WORDS));
+    $args  = array_map(fn($w) => "% $w %", IT_DESIGNATION_WORDS);
+
+    return q("SELECT u.id, u.name, u.employee_id, u.designation, d.name AS dept_name
+                FROM users u
+                LEFT JOIN departments d ON d.id = u.department_id
+               WHERE u.is_active = 1 AND COALESCE(u.status, 'Working') = 'Working'
+                 AND u.role NOT IN ('admin', 'hod', 'face_operator')
+                 AND (d.name = 'IT' OR u.role = 'it' OR $words)
+               ORDER BY u.name", $args)->fetchAll();
 }
 
 /** A ticket the current user is allowed to see. */

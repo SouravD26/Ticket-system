@@ -9,10 +9,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pass  = post('password');
 
     if ($login === '' || $pass === '') {
-        $errors[] = 'User ID and password are required.';
+        $errors[] = 'Employee ID (or mobile number) and password are required.';
     } else {
-        $u = q('SELECT * FROM users WHERE username = ? OR email = ? OR phone = ?', [$login, $login, $login])->fetch();
-        if (!$u || !password_verify($pass, $u['password'])) {
+        /* Employee ID, mobile number, user ID or email all sign in. HRMS employee IDs
+           are not unique (the same number is held by several people), so when one
+           matches more than one account the password decides which. */
+        $candidates = q('SELECT * FROM users WHERE username = ? OR email = ? OR phone = ? OR employee_id = ?
+                         ORDER BY is_active DESC, id', [$login, $login, $login, $login])->fetchAll();
+        $matches = array_values(array_filter($candidates, fn($c) => password_verify($pass, $c['password'])));
+        $u = $matches[0] ?? null;
+
+        if (count($matches) > 1) {
+            $errors[] = 'More than one account matches that employee ID and password. Please sign in with your mobile number, and ask HR to correct the duplicate employee ID.';
+        } elseif (!$u) {
             $errors[] = 'Those credentials do not match our records.';
         } elseif (!$u['is_active']) {
             $errors[] = 'This account has been deactivated.';
@@ -51,7 +60,7 @@ require __DIR__ . '/layout/header.php';
   <div class="flex items-center justify-center p-6">
     <div class="w-full max-w-md">
       <h1 class="text-xl font-semibold tracking-tight text-zinc-900">Sign in</h1>
-      <p class="mt-1 text-[13px] text-zinc-500">Sign in with your User Name or mobile number.</p>
+      <p class="mt-1 text-[13px] text-zinc-500">Sign in with your employee ID, mobile number or user ID.</p>
 
       <?php foreach ($errors as $er): ?>
         <div class="mt-5 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-[13px] text-rose-700"><?= e($er) ?></div>
@@ -60,8 +69,8 @@ require __DIR__ . '/layout/header.php';
       <form method="post" class="mt-6 space-y-4">
         <?= csrf_field() ?>
         <div>
-          <label class="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-400">User Name or Phone</label>
-          <input name="login" required autofocus placeholder="User ID or mobile number" value="<?= e($_POST['login'] ?? '') ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
+          <label class="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Employee ID or Phone</label>
+          <input name="login" required autofocus placeholder="Employee ID or mobile number" value="<?= e($_POST['login'] ?? '') ?>" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
         </div>
         <div>
           <label class="mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Password</label>
@@ -82,7 +91,7 @@ require __DIR__ . '/layout/header.php';
         </div>
         <button class="w-full rounded-md bg-brand-500 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-brand-600">Sign in</button>
       </form>
-      <p class="mt-6 text-center text-[11px] text-zinc-500">Accounts are issued by the Super Admin.</p>
+      <p class="mt-6 text-center text-[11px] text-zinc-500">Accounts come from the HRMS employee record.</p>
     </div>
   </div>
 </div>

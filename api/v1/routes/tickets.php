@@ -20,9 +20,25 @@ const TICKET_PRIO    = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 
 function tickets_can_raise(array $u): bool {
     return in_array($u['role'], ['superadmin', 'employee', 'hr'], true);
 }
-/** IT and the Super Admin do the work. */
+/**
+ * IT and the Super Admin do the work. IT is what the HRMS says it is - the
+ * IT department or an IT designation - so there is no separate account to keep,
+ * matching it_staff() on the web side.
+ */
 function tickets_can_work(array $u): bool {
-    return in_array($u['role'], ['superadmin', 'it'], true);
+    if (in_array($u['role'], ['superadmin', 'it'], true)) return true;
+    return ($u['department'] ?? '') === 'IT' || tickets_it_designation((string)($u['designation'] ?? ''));
+}
+
+/** Designations that mean "this person fixes IT problems", matched on whole words. */
+function tickets_it_designation(string $designation): bool {
+    $words = ['IT', 'EDP', 'System', 'Systems', 'Network', 'Hardware', 'Software',
+              'Developer', 'Programmer', 'Technical', 'Tech', 'Support', 'Helpdesk'];
+    $padded = ' ' . strtolower(str_replace(['.', '-', '/'], ' ', $designation)) . ' ';
+    foreach ($words as $w) {
+        if (strpos($padded, ' ' . strtolower($w) . ' ') !== false) return true;
+    }
+    return false;
 }
 /** Admin is a reporting role: it reads tickets but never writes. */
 function tickets_read_only(array $u): bool {
@@ -305,7 +321,7 @@ function tickets_update(mysqli $conn): void {
     if ($status === 'resolved' && !$agent) {
         fail('Assign the ticket to an IT person before marking it complete.', 422, 'validation_error');
     }
-    if ($agent && !fetch_one($conn, "SELECT id FROM users WHERE id = ? AND role IN ('it','superadmin') LIMIT 1", 'i', [$agent])) {
+    if ($agent && !tickets_is_it_staff($conn, $agent)) {
         fail('Tickets can only be assigned to IT staff.', 422, 'validation_error');
     }
 
@@ -397,6 +413,40 @@ function tickets_reraise(mysqli $conn): void {
 
     ok(['message' => 'Raised again - it is back with the Super Admin to be assigned.',
         'ticket'  => shape_ticket(tickets_find($conn, $user, $tid), $user)]);
+}
+
+/** May this employee be handed a ticket? The HRMS record decides. */
+function tickets_is_it_staff(mysqli $conn, int $id): bool {
+    $row = fetch_one(
+        $conn,
+        "SELECT u.role, u.designation, d.name AS department
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id
+          WHERE u.id = ? AND u.is_active = 1 AND COALESCE(u.status,'Working') = 'Working' LIMIT 1",
+        'i',
+        [$id]
+    );
+    return $row !== null && tickets_can_work($row);
+}
+
+/** GET tickets/it_staff - who a ticket may be assigned to. */
+function tickets_it_staff(mysqli $conn): void {
+    $user = auth_user($conn);
+    if (!tickets_can_work($user)) fail('Only IT staff and the Super Admin may assign tickets.', 403, 'forbidden');
+
+    $rows = fetch_all(
+        $conn,
+        "SELECT u.id, u.name, u.employee_id, u.designation, d.name AS department
+           FROM users u LEFT JOIN departments d ON d.id = u.department_id
+          WHERE u.is_active = 1 AND COALESCE(u.status,'Working') = 'Working'
+            AND u.role NOT IN ('admin','hod','face_operator')
+          ORDER BY u.name"
+    );
+    $staff = array_values(array_filter($rows, static fn(array $r): bool => tickets_can_work($r)));
+    ok(array_map(static fn(array $r): array => [
+        'id' => (int)$r['id'], 'name' => $r['name'],
+        'employee_id' => $r['employee_id'], 'designation' => $r['designation'],
+        'department' => $r['department'],
+    ], $staff));
 }
 
 /** GET tickets/locations - what the location field accepts, from the HRMS master list. */

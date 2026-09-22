@@ -163,7 +163,7 @@ $activity = q('SELECT a.*, u.name FROM ticket_activity a LEFT JOIN users u ON u.
                WHERE a.ticket_id = ? ORDER BY a.created_at DESC LIMIT 20', [$ticket['id']])->fetchAll();
 
 // Only the Super Admin hands tickets to IT staff, and re-hands them when someone is away.
-$agents      = can_assign() ? q('SELECT id, name FROM users WHERE role = "it" AND is_active = 1 ORDER BY name')->fetchAll() : [];
+$agents      = can_assign() ? it_agents() : [];
 $departments = can_assign() ? all_departments() : [];
 
 // The work sheet for this ticket — visible to staff, kept apart from the conversation.

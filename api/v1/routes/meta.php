@@ -7,7 +7,7 @@ declare(strict_types=1);
 function api_endpoint_map(): array {
     return [
         'auth' => [
-            'POST auth/login'            => 'phone|username, password, device_info? -> token + user',
+            'POST auth/login'            => 'employee ID, phone or email + password, device_info? -> token + user',
             'POST auth/logout'           => 'all=1 to sign out every device',
             'GET  auth/me'               => 'current user + today punch state',
             'GET  auth/devices'          => 'active sessions for this user',
@@ -46,6 +46,7 @@ function api_endpoint_map(): array {
             'POST tickets/acknowledge'   => 'id -> requester signs the work off and the ticket closes',
             'POST tickets/reraise'       => 'id, reason? -> still broken, back to the queue',
             'GET  tickets/locations'     => 'location list, statuses and priorities for the form',
+            'GET  tickets/it_staff'      => 'employees a ticket may be assigned to (HRMS IT department / designation)',
         ],
         'employees' => [
             'GET  employees'             => 'directory: search, department, company, location, page',

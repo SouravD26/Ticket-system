@@ -143,7 +143,7 @@ $emp = $editing ? q('SELECT * FROM users WHERE id = ?', [$editing])->fetch() : n
 $showForm = $emp || get_('new');
 
 // List
-$f = ['q' => get_('q'), 'dept' => (int) get_('dept'), 'company' => get_('company'), 'location' => get_('location'),
+$f = ['q' => get_('q'), 'dept' => dept_filter_id(get_('dept')), 'company' => get_('company'), 'location' => get_('location'),
       'status' => get_('status', 'Working'), 'photo' => get_('photo')];
 // Staff only: Super Admins, Admins and kiosk logins live under System Accounts.
 $where = ["u.role NOT IN ('superadmin','admin','hod','face_operator')", "u.phone IS NOT NULL"];

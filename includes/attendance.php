@@ -378,7 +378,7 @@ function att_grid(array $users, string $from, string $to): array
     return $grid;
 }
 
-/** Shared control styling for the HRMS screens, matching users.php. */
+/** Shared control styling for the HRMS screens. */
 const ATT_FIELD = 'w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-400';
 const ATT_BTN   = 'rounded-md bg-brand-500 px-3 py-2 text-[13px] font-medium text-white shadow-sm transition hover:bg-brand-600';
 const ATT_BTN2  = 'rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] font-medium text-zinc-700 transition hover:bg-zinc-50';
@@ -388,8 +388,12 @@ function att_select(string $name, array $options, ?string $value, string $blank 
 {
     $o = '<select name="' . e($name) . '" class="' . ATT_FIELD . '" ' . $extra . '>';
     if ($blank !== '') $o .= '<option value="">' . e($blank) . '</option>';
+    // A plain list (['Male','Female']) submits its values; a map submits its keys.
+    // The keys of an id => name list are integers too, so "is the key an int" is
+    // not the question - "is this list numbered 0,1,2..." is.
+    $isList = array_keys($options) === range(0, count($options) - 1);
     foreach ($options as $k => $v) {
-        $key = is_int($k) ? $v : $k;
+        $key = $isList ? $v : $k;
         $o .= '<option value="' . e($key) . '"' . ((string) $value === (string) $key ? ' selected' : '') . '>' . e($v) . '</option>';
     }
     return $o . '</select>';

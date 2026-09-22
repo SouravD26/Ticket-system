@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && post('action') === 'assign') {
 
     $ticket = find_ticket((int) post('ticket_id'));
     $agent  = (int) post('assigned_to');
-    $agentOk = $agent && q('SELECT id FROM users WHERE id = ? AND role = "it" AND is_active = 1', [$agent])->fetch();
+    $agentOk = $agent && is_it_staff($agent);
 
     if (!$ticket) {
         flash('That ticket no longer exists.', 'error');
@@ -152,8 +152,9 @@ require __DIR__ . '/layout/header.php';
 
     <?php if ($assignHere && !$agents): ?>
       <p class="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-800">
-        There are no active IT accounts yet, so there is nobody to assign these to.
-        <a href="<?= url('users.php') ?>" class="font-medium underline">Create an IT account &rarr;</a>
+        Nobody is in IT yet, so there is nobody to assign these to. IT staff are the employees in the
+        IT department (or with an IT designation).
+        <a href="<?= url('hrms-employees.php') ?>" class="font-medium underline">Open Employees &rarr;</a>
       </p>
     <?php endif; ?>
 
