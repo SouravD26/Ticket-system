@@ -94,12 +94,18 @@ function att_geofence_error(array $u, ?float $lat, ?float $lng): ?string
          . '. Attendance is only allowed within ' . $radius . ' m.';
 }
 
-/** A readable address for a GPS fix, or the coordinates when the lookup fails. */
+/**
+ * A readable address for a GPS fix, or the coordinates when the lookup fails.
+ * Never block attendance on a slow external geocoder.
+ */
 function att_place_name(?float $lat, ?float $lng): string
 {
     if ($lat === null || $lng === null) return 'Office';
     $fallback = sprintf('Lat: %.5f, Lng: %.5f', $lat, $lng);
-    $ctx = stream_context_create(['http' => ['timeout' => 4, 'user_agent' => APP_NAME . '/1.0', 'header' => 'Accept-Language: en']]);
+    $ctx = stream_context_create([
+        'http' => ['timeout' => 0.5, 'ignore_errors' => true, 'user_agent' => APP_NAME . '/1.0', 'header' => 'Accept-Language: en'],
+        'https' => ['timeout' => 0.5, 'ignore_errors' => true, 'user_agent' => APP_NAME . '/1.0', 'header' => 'Accept-Language: en'],
+    ]);
     $json = @file_get_contents('https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&addressdetails=1&lat='
                                . urlencode((string) $lat) . '&lon=' . urlencode((string) $lng), false, $ctx);
     $a = $json ? (json_decode($json, true)['address'] ?? null) : null;

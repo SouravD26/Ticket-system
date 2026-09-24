@@ -269,16 +269,22 @@ function check_location_allowed(mysqli $conn, int $user_id, ?float $lat, ?float 
     return ['allowed' => true, 'distance' => round($distance)];
 }
 
-/** Reverse geocode, falling back to plain coordinates when the lookup fails. */
+/**
+ * Reverse geocode, but never block the punch request on a slow external service.
+ * If the lookup takes too long or the network is unavailable, return the exact
+ * coordinates immediately so the attendance request can finish quickly.
+ */
 function location_name(?float $lat, ?float $lng): string {
     if ($lat === null || $lng === null) return 'Office';
     $fallback = 'Lat: ' . number_format($lat, 4) . ', Lng: ' . number_format($lng, 4);
 
+    // Do not let Nominatim stall the attendance flow. The coordinates are enough
+    // for attendance records; the readable place name is only a convenience.
     $url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' . urlencode((string)$lat)
          . '&lon=' . urlencode((string)$lng) . '&zoom=18&addressdetails=1';
     $ctx = stream_context_create([
-        'http'  => ['timeout' => 3, 'user_agent' => 'AttendanceSystem/1.0'],
-        'https' => ['timeout' => 3, 'user_agent' => 'AttendanceSystem/1.0'],
+        'http'  => ['timeout' => 0.5, 'ignore_errors' => true, 'user_agent' => 'AttendanceSystem/1.0'],
+        'https' => ['timeout' => 0.5, 'ignore_errors' => true, 'user_agent' => 'AttendanceSystem/1.0'],
     ]);
     $res = @file_get_contents($url, false, $ctx);
     if ($res === false || $res === '') return $fallback;
