@@ -14,7 +14,7 @@ require __DIR__ . '/layout/header.php';
 <div class="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[1fr_22rem]">
   <section class="rounded-lg border border-zinc-200 bg-white p-4 shadow-card">
     <div class="relative aspect-video overflow-hidden rounded-md bg-zinc-900">
-      <video id="video" playsinline muted class="h-full w-full object-cover [transform:scaleX(-1)]"></video>
+      <video id="video" playsinline muted class="h-full w-full object-cover"></video>
       <div id="banner" class="pointer-events-none absolute inset-x-4 bottom-4 hidden rounded-md px-4 py-3 text-center text-lg font-semibold text-white shadow-lg"></div>
     </div>
     <div class="mt-3 flex flex-wrap items-center gap-3">

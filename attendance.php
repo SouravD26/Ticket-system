@@ -122,7 +122,7 @@ require __DIR__ . '/layout/header.php';
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <div class="relative aspect-[4/3] overflow-hidden rounded-md bg-zinc-900">
-            <video id="video" playsinline muted class="h-full w-full object-cover [transform:scaleX(-1)]"></video>
+            <video id="video" playsinline muted class="h-full w-full object-cover"></video>
             <img id="shot" class="absolute inset-0 hidden h-full w-full object-cover" alt="">
           </div>
           <canvas id="canvas" class="hidden"></canvas>
@@ -273,7 +273,13 @@ function capture() {
   const v = $('video'), c = $('canvas');
   if (!v.videoWidth) return;
   c.width = 640; c.height = Math.round(640 * v.videoHeight / v.videoWidth);
-  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.save();
+  ctx.translate(c.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+  ctx.restore();
   const data = c.toDataURL('image/jpeg', 0.8);
   $('selfie').value = data; $('shot').src = data; $('shot').classList.remove('hidden');
   $('captureBtn').classList.add('hidden'); $('retakeBtn').classList.remove('hidden');

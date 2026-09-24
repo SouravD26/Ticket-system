@@ -25,7 +25,7 @@ if ($userId) {
 } else {
     /* ---------- everyone, one day ---------- */
     $date = strtotime(get_('date')) ? date('Y-m-d', strtotime(get_('date'))) : att_workday();
-    $f = ['dept' => dept_filter_id(get_('dept')), 'company' => get_('company'), 'location' => get_('location'), 'show' => get_('show', 'all')];
+    $f = ['dept' => dept_filter_id(get_('dept')), 'company' => get_('company'), 'location' => get_('location'), 'show' => 'present'];
     // Working staff, plus anyone who actually punched that day - a since-resigned
     // employee still belongs on the sheet for the days they worked.
     $where = ["u.phone IS NOT NULL", "u.role NOT IN ('superadmin','admin','hod','face_operator')",
@@ -40,8 +40,8 @@ if ($userId) {
     $punches = [];
     foreach (q('SELECT * FROM attendance WHERE date = ? ORDER BY id', [$date]) as $r) $punches[$r['user_id']][] = $r;
     $count = array_count_values(array_map(fn($p) => $grid[$p['id']][$date]['code'], $people));
-    if ($f['show'] === 'present') $people = array_filter($people, fn($p) => isset($punches[$p['id']]));
-    if ($f['show'] === 'absent')  $people = array_filter($people, fn($p) => $grid[$p['id']][$date]['code'] === 'A');
+    // The daily list is intentionally present-only.
+    $people = array_filter($people, fn($p) => isset($punches[$p['id']]));
 
     // The counters above the table stay for the whole day; only the rows are paged.
     $per   = 20;
@@ -115,7 +115,8 @@ $stats = ['P' => 'Present', 'A' => 'Absent', 'L' => 'Leave', 'WO' => 'Week off',
     <div class="w-40"><?= att_select('dept', array_column(all_departments(), 'name', 'id'), (string) $f['dept'], 'All departments') ?></div>
     <div class="w-40"><?= att_select('company', att_companies(), $f['company'], 'All companies') ?></div>
     <div class="w-36"><?= att_select('location', att_locations(), $f['location'], 'All locations') ?></div>
-    <div class="w-32"><?= att_select('show', ['all' => 'Everyone', 'present' => 'Present', 'absent' => 'Absent'], $f['show']) ?></div>
+    <input type="hidden" name="show" value="present">
+    <div class="w-32"><span class="inline-flex h-10 w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-[12px] font-medium text-zinc-600">Present only</span></div>
     <button class="<?= ATT_BTN2 ?>">Show</button>
   </form>
   <div class="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
