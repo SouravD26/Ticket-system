@@ -16,8 +16,6 @@ const ATT_DAY_STARTS_AT = 6; // hour
 /** The longest a single punch in may stay open before it counts as forgotten. */
 const ATT_SHIFT_MAX_H = 16;
 const ATT_DIR = UPLOAD_DIR . '/hrms';
-/** A self punch whose GPS fix is less precise than this (metres) is refused. */
-const ATT_MAX_ACCURACY_M = 100;
 
 /** The attendance date a punch made right now belongs to. */
 function att_workday(?int $ts = null): string

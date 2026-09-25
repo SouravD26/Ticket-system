@@ -244,8 +244,11 @@ require __DIR__ . '/layout/header.php';
 
 <?php if ($TAB === 'punch'): ?>
 <script>
+// Tick from the server's clock (the one punches are stamped with), not the device's,
+// so a phone that is a few minutes off still shows the time that will be recorded.
+const clockSkew = <?= (int) round(microtime(true) * 1000) ?> - Date.now();
 setInterval(() => { document.getElementById('clock').textContent =
-  new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'}); }, 1000);
+  new Date(Date.now() + clockSkew).toLocaleTimeString('en-US', {timeZone:'Asia/Kolkata', hour:'2-digit', minute:'2-digit', second:'2-digit'}); }, 1000);
 
 let stream = null, haveSelfie = false, haveGps = false;
 const geoRequired = true; // every punch records where it was made
@@ -262,7 +265,7 @@ async function openPunch() {
   } catch (e) {
     alert('Camera unavailable: ' + e.message + '\nThe camera needs HTTPS (or localhost) and permission.');
   }
-  locate();
+  ensureLocation();
 }
 function closePunch() {
   stopWatch();
@@ -292,47 +295,50 @@ function retake() {
 }
 /*
  * Precise location. The first fix a browser returns is often a rough network/IP
- * guess (1-5 km). So we keep watching GPS, keep the most accurate reading, and only
- * accept one within GOOD_M. The server refuses anything worse than MAX_M.
+ * guess (1-5 km). GPS starts as soon as the page opens, so it is warm by the time
+ * the selfie is taken; we keep the most accurate reading and never give up - the
+ * button unlocks the moment a reading within MAX_M (the server's limit) arrives,
+ * and watching stops once one within GOOD_M does.
  */
-const GOOD_M = 50, MAX_M = <?= ATT_MAX_ACCURACY_M ?>, WAIT_MS = 30000;
-let watchId = null, best = null, gpsTimer = null;
+const GOOD_M = 20, MAX_M = <?= ATT_MAX_ACCURACY_M ?>, HINT_MS = 20000, FRESH_MS = 120000;
+let watchId = null, best = null, gpsTimer = null, gpsStart = 0;
 function gpsBox(cls, html) {
   const tone = {ok: 'border-emerald-200 bg-emerald-50 text-emerald-700', wait: 'border-amber-200 bg-amber-50 text-amber-700', bad: 'border-rose-200 bg-rose-50 text-rose-700'}[cls];
   $('gps').className = 'mt-4 rounded-md border px-3 py-2 text-[12px] ' + tone; $('gps').innerHTML = html;
 }
-function stopWatch() { if (watchId !== null) navigator.geolocation.clearWatch(watchId); watchId = null; clearTimeout(gpsTimer); }
+function stopWatch() { if (watchId !== null) navigator.geolocation.clearWatch(watchId); watchId = null; clearInterval(gpsTimer); }
 function useFix(p) {
   $('lat').value = p.coords.latitude; $('lng').value = p.coords.longitude; $('accuracy').value = p.coords.accuracy;
   haveGps = p.coords.accuracy <= MAX_M; ready();
 }
+function gpsStatus() {
+  const secs = Math.round((Date.now() - gpsStart) / 1000);
+  const tip = Date.now() - gpsStart > HINT_MS ? ' Turn on GPS / high-accuracy location, or move near a window.' : '';
+  if (!best) { gpsBox('wait', `Getting a precise GPS fix… ${secs}s.${tip}`); return; }
+  const acc = Math.round(best.coords.accuracy);
+  const map = `<a class="underline" target="_blank" href="https://www.google.com/maps?q=${best.coords.latitude},${best.coords.longitude}">view on map</a>`;
+  if (acc <= GOOD_M) gpsBox('ok', `Precise location captured (±${acc} m) · ${map}`);
+  else if (acc <= MAX_M) gpsBox('ok', `Location ready (±${acc} m) · ${map} - still sharpening, you can punch now.`);
+  else gpsBox('wait', `Improving accuracy… now ±${acc} m, need ±${MAX_M} m · ${secs}s · ${map}.${tip}`);
+}
 function locate() {
   if (!navigator.geolocation) { gpsBox('bad', 'This browser cannot share location.'); return; }
-  stopWatch(); best = null; haveGps = false; ready();
-  gpsBox('wait', 'Getting a precise GPS fix… (go near a window or outdoors if this takes long)');
+  stopWatch(); best = null; haveGps = false; ready(); gpsStart = Date.now(); gpsStatus();
   watchId = navigator.geolocation.watchPosition(p => {
     if (best && p.coords.accuracy >= best.coords.accuracy) return;
-    best = p; useFix(p);
-    const acc = Math.round(p.coords.accuracy);
-    const map = `<a class="underline" target="_blank" href="https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}">view on map</a>`;
-    if (acc <= GOOD_M) { stopWatch(); gpsBox('ok', `Precise location captured (±${acc} m) · ${map}`); }
-    else gpsBox('wait', `Improving accuracy… now ±${acc} m (need ±${GOOD_M} m) · ${map}`);
+    best = p; useFix(p); gpsStatus();
+    if (p.coords.accuracy <= GOOD_M) stopWatch();
   }, e => {
+    if (e.code === e.TIMEOUT) return; // keep watching; GPS may still lock
     stopWatch();
     gpsBox('bad', 'Location not available: ' + e.message + '. Turn on GPS / location and allow it for this site. '
       + '<button type="button" class="underline" onclick="locate()">Try again</button>');
-  }, {enableHighAccuracy: true, timeout: WAIT_MS, maximumAge: 0});
-
-  // Stop waiting after WAIT_MS: accept the best fix if it is usable, otherwise ask to retry.
-  gpsTimer = setTimeout(() => {
-    stopWatch();
-    if (!best) { gpsBox('bad', 'Could not get your location. <button type="button" class="underline" onclick="locate()">Try again</button>'); return; }
-    const acc = Math.round(best.coords.accuracy);
-    if (acc <= MAX_M) gpsBox('ok', `Location captured (±${acc} m). <button type="button" class="underline" onclick="locate()">Try for better</button>`);
-    else gpsBox('bad', `Location too rough (±${acc} m; need ±${MAX_M} m or better). Turn on GPS / high-accuracy mode, move near a window, then `
-      + '<button type="button" class="underline" onclick="locate()">try again</button>.');
-  }, WAIT_MS);
+  }, {enableHighAccuracy: true, maximumAge: 0});
+  gpsTimer = setInterval(() => { if (!best || best.coords.accuracy > GOOD_M) gpsStatus(); }, 1000);
 }
+// A fix taken minutes ago may no longer be where the person is now.
+function ensureLocation() { if (watchId === null && (!best || Date.now() - best.timestamp > FRESH_MS)) locate(); }
+ensureLocation(); // warm GPS up while the page is open
 $('punchForm').addEventListener('submit', () => { $('submitBtn').disabled = true; $('submitBtn').textContent = 'Saving…'; });
 </script>
 <?php endif; ?>

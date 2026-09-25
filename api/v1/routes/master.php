@@ -79,6 +79,7 @@ function master_office(mysqli $conn): void {
     ok([
         'office'         => master_office_row($conn),
         'geo_restricted' => (int)($user['geo_restricted'] ?? 0) === 1,
+        'max_accuracy_meters' => ATT_MAX_ACCURACY_M,
     ]);
 }
 

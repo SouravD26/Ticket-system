@@ -96,8 +96,8 @@ and employment status are admin-only.
 | Endpoint | Body / query |
 |---|---|
 | `GET  attendance/today` | punches, `is_punched_in`, `can_punch_in`, `can_punch_out` |
-| `POST attendance/punch_in` | `selfie_image`, `latitude`, `longitude`, `accuracy?` |
-| `POST attendance/punch_out` | `selfie_image`, `latitude`, `longitude`, `accuracy?` |
+| `POST attendance/punch_in` | `selfie_image`, `latitude`, `longitude`, `accuracy` (metres, ≤ 50) |
+| `POST attendance/punch_out` | `selfie_image`, `latitude`, `longitude`, `accuracy` (metres, ≤ 50) |
 | `GET  attendance/history` | `month=YYYY-MM` or `from`/`to`, `page`, `per_page` |
 | `GET  attendance/summary` | day-by-day calendar + month stats |
 | `POST attendance/track` | `latitude`, `longitude`, `accuracy?`, `address?` |
@@ -166,6 +166,11 @@ another employee's data; employees requesting anyone but themselves get a 403.
   previous date — the same rule the web app uses.
 - **One open punch at a time.** Punching in twice returns 409 with
   `open_punch_id`; multiple in/out pairs per day are allowed.
+- **GPS must be precise.** Both punches need `latitude`, `longitude` and the
+  device's `accuracy` in metres, no worse than `ATT_MAX_ACCURACY_M` (50, in
+  `includes/config.php`; also returned as `max_accuracy_meters` by
+  `master/office`). Otherwise 422 `location_required` / `location_imprecise`.
+  Use high-accuracy GPS and keep the best reading from a few seconds of updates.
 - **Geofencing** applies only to users flagged `geo_restricted`, measured
   against `office_settings` with a Haversine distance.
 - **Selfies are mandatory** on both punches, validated as real images (max 8 MB)

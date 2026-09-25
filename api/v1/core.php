@@ -235,6 +235,18 @@ function haversine_m(float $lat1, float $lon1, float $lat2, float $lon2): float 
     return $R * 2 * atan2(sqrt($a), sqrt(1 - $a));
 }
 
+/** Refuses a punch whose GPS fix is missing or rougher than ATT_MAX_ACCURACY_M. */
+function require_precise_location(?float $lat, ?float $lng, ?float $acc): void {
+    if ($lat === null || $lng === null) {
+        fail('Your location could not be captured. Allow location access and try again.', 422, 'location_required');
+    }
+    if ($acc === null || $acc <= 0 || $acc > ATT_MAX_ACCURACY_M) {
+        fail('Your location is not precise enough' . ($acc > 0 ? ' (±' . round($acc) . ' m)' : '')
+             . '. Turn on GPS and try again (need ±' . ATT_MAX_ACCURACY_M . ' m or better).', 422, 'location_imprecise',
+             ['accuracy_meters' => $acc, 'max_accuracy_meters' => ATT_MAX_ACCURACY_M]);
+    }
+}
+
 /** Geofence check - only enforced for users flagged geo_restricted. */
 function check_location_allowed(mysqli $conn, int $user_id, ?float $lat, ?float $lng): array {
     $u = fetch_one($conn, "SELECT geo_restricted, location FROM users WHERE id = ? LIMIT 1", 'i', [$user_id]);

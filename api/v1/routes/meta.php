@@ -21,8 +21,8 @@ function api_endpoint_map(): array {
         ],
         'attendance' => [
             'GET  attendance/today'      => "today's punches and punch state",
-            'POST attendance/punch_in'   => 'selfie_image, latitude, longitude, accuracy?',
-            'POST attendance/punch_out'  => 'selfie_image, latitude, longitude, accuracy?',
+            'POST attendance/punch_in'   => 'selfie_image, latitude, longitude, accuracy (metres, <= ' . ATT_MAX_ACCURACY_M . ')',
+            'POST attendance/punch_out'  => 'selfie_image, latitude, longitude, accuracy (metres, <= ' . ATT_MAX_ACCURACY_M . ')',
             'GET  attendance/history'    => 'month=YYYY-MM or from/to, page, per_page',
             'GET  attendance/summary'    => 'day-by-day summary + month stats',
             'POST attendance/track'      => 'latitude, longitude, accuracy?, address? (while punched in)',

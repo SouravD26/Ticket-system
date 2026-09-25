@@ -43,7 +43,7 @@ function attendance_today(mysqli $conn): void {
     ]);
 }
 
-/** POST attendance/punch_in { selfie_image, latitude, longitude, accuracy? } */
+/** POST attendance/punch_in { selfie_image, latitude, longitude, accuracy } - accuracy in metres, ATT_MAX_ACCURACY_M or better */
 function attendance_punch_in(mysqli $conn): void {
     require_method('POST');
     $user = auth_user($conn);
@@ -59,6 +59,7 @@ function attendance_punch_in(mysqli $conn): void {
     $lat = param_float('latitude')  ?? param_float('punch_in_lat');
     $lng = param_float('longitude') ?? param_float('punch_in_lng');
     $acc = param_float('accuracy')  ?? param_float('punch_in_accuracy');
+    require_precise_location($lat, $lng, $acc);
 
     $geo = check_location_allowed($conn, $uid, $lat, $lng);
     if (!$geo['allowed']) {
@@ -115,7 +116,7 @@ function attendance_punch_in(mysqli $conn): void {
     ]);
 }
 
-/** POST attendance/punch_out { selfie_image, latitude, longitude, accuracy? } */
+/** POST attendance/punch_out { selfie_image, latitude, longitude, accuracy } - accuracy in metres, ATT_MAX_ACCURACY_M or better */
 function attendance_punch_out(mysqli $conn): void {
     require_method('POST');
     $user = auth_user($conn);
@@ -131,6 +132,7 @@ function attendance_punch_out(mysqli $conn): void {
     $lat = param_float('latitude')  ?? param_float('punch_out_lat');
     $lng = param_float('longitude') ?? param_float('punch_out_lng');
     $acc = param_float('accuracy')  ?? param_float('punch_out_accuracy');
+    require_precise_location($lat, $lng, $acc);
 
     $geo = check_location_allowed($conn, $uid, $lat, $lng);
     if (!$geo['allowed']) {
