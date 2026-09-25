@@ -31,7 +31,7 @@ define('MAX_UPLOAD', 5 * 1024 * 1024); // 5 MB
 date_default_timezone_set('Asia/Kolkata');
 
 // Roughest GPS fix (metres) a self punch may carry - web page and mobile API alike.
-define('ATT_MAX_ACCURACY_M', 50);
+define('ATT_MAX_ACCURACY_M', 200);
 
 error_reporting(E_ALL);
 ini_set('display_errors', '1'); // set to '0' on live hosting
