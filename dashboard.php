@@ -141,7 +141,8 @@ require __DIR__ . '/layout/header.php';
   <?php endforeach; ?>
 </div>
 
-<?php if ($queue): ?>
+<?php // "Waiting to be assigned" is hidden on the Super Admin dashboard; to bring it back, drop the is_super() check.
+if ($queue && !is_super()): ?>
   <div class="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
     <div class="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5">
       <h2 class="flex items-center gap-2 text-[13px] font-semibold text-zinc-900"><?= e($queueTitle) ?>
