@@ -166,7 +166,7 @@ require __DIR__ . '/layout/header.php';
     ['People tracked', $totals['people'], 'bg-brand-500'],
     ['Tickets raised', $totals['raised'], 'bg-sky-500'],
     ['Task entries',   $totals['tasks'],  'bg-amber-500'],
-    ['Hours logged',   $totals['hours'],  'bg-emerald-500'],
+    ['Time logged (h:mm)', hm($totals['hours']), 'bg-emerald-500'],
   ] as [$label, $value, $accent]): ?>
     <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
       <div class="flex items-center gap-2">
@@ -196,7 +196,7 @@ require __DIR__ . '/layout/header.php';
           <th class="px-3 py-2">Raised</th>
           <th class="px-3 py-2">Assigned</th>
           <th class="px-3 py-2">Tasks</th>
-          <th class="px-3 py-2">Hours</th>
+          <th class="px-3 py-2">Time (h:mm)</th>
           <th class="px-3 py-2">Last entry</th>
         </tr>
       </thead>
@@ -219,7 +219,7 @@ require __DIR__ . '/layout/header.php';
             <td class="px-3 py-2 text-zinc-600"><?= (int)$r['raised'] ?> <span class="text-[11px] text-zinc-500">(<?= (int)$r['raised_open'] ?> open)</span></td>
             <td class="px-3 py-2 text-zinc-600"><?= (int)$r['assigned'] ?> <span class="text-[11px] text-zinc-500">(<?= (int)$r['assigned_done'] ?> done)</span></td>
             <td class="px-3 py-2 text-zinc-600"><?= (int)$r['tasks'] ?></td>
-            <td class="px-3 py-2 text-zinc-600"><?= (float)$r['hours'] ?></td>
+            <td class="px-3 py-2 text-zinc-600"><?= hm($r['hours']) ?></td>
             <td class="px-3 py-2 text-zinc-500"><?= $r['last_task'] ? date('M j, Y', strtotime($r['last_task'])) : '—' ?></td>
           </tr>
         <?php endforeach; ?>
@@ -254,7 +254,7 @@ require __DIR__ . '/layout/header.php';
             <?php endif; ?>
           </div>
           <span class="shrink-0 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-zinc-600"><?= e(TASK_STATUSES[$t['status']]) ?></span>
-          <span class="shrink-0 text-[11px] text-zinc-500"><?= (float)$t['hours'] ?>h</span>
+          <span class="shrink-0 text-[11px] text-zinc-500"><?= hm($t['hours']) ?></span>
         </li>
       <?php endforeach; ?>
       <?php if (!$detail): ?>

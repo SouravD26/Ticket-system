@@ -286,8 +286,33 @@ const TASK_STATUS_STYLES = [
     'blocked'     => ['dot' => 'bg-rose-500',    'chip' => 'bg-rose-50 text-rose-700 ring-rose-600/20'],
 ];
 
-/** The hour steps offered in the dropdown; anything else goes in via Custom. */
+/** The time steps offered in the dropdown (decimal hours); anything else goes in via Custom. */
 const TASK_HOUR_STEPS = ['0.25', '0.5', '1', '1.5', '2', '3', '4'];
+
+/** Decimal hours as H:MM - 1.5 -> "1:30". Task time is stored as decimal hours. */
+function hm($hours): string
+{
+    $m = (int) round((float) $hours * 60);
+    return intdiv($m, 60) . ':' . str_pad((string) ($m % 60), 2, '0', STR_PAD_LEFT);
+}
+
+/** "H:MM" (or a plain decimal, for older drafts) as decimal hours. */
+function hm_to_hours($v): float
+{
+    $v = trim((string) $v);
+    if (preg_match('/^(\d{1,2}):([0-5]?\d)$/', $v, $m)) return (int) $m[1] + (int) $m[2] / 60;
+    return (float) $v;
+}
+
+/** A DD/MM/YYYY date as Y-m-d, or null when it is not a real date. Y-m-d passes through. */
+function dmy_to_ymd($v): ?string
+{
+    $v = trim((string) $v);
+    if (preg_match('/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/', $v, $m)) [, $d, $mo, $y] = $m;
+    elseif (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m)) [, $y, $mo, $d] = $m;
+    else return null;
+    return checkdate((int) $mo, (int) $d, (int) $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : null;
+}
 
 /**
  * SQL fragment limiting a ticket query to what the current user may see.

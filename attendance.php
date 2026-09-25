@@ -18,12 +18,13 @@ $SELF = ['punch' => 'attendance.php', 'records' => 'my-attendance.php', 'leave' 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && post('action') === 'leave') {
     // The same rules as the app's leave/apply.
     csrf_check();
-    $t = post('leave_type'); $a = post('start_date'); $b = post('end_date') ?: $a;
-    if (!in_array($t, ATT_LEAVE_TYPES, true) || !strtotime($a) || !strtotime($b) || $b < $a || post('reason') === '') {
-        flash('Choose a leave type, valid dates and give a reason.', 'error');
+    // Dates arrive as DD/MM/YYYY.
+    $t = post('leave_type'); $a = dmy_to_ymd(post('start_date')); $b = post('end_date') === '' ? $a : dmy_to_ymd(post('end_date'));
+    if (!in_array($t, ATT_LEAVE_TYPES, true) || !$a || !$b || $b < $a || post('reason') === '') {
+        flash('Choose a leave type, valid dates (DD/MM/YYYY) and give a reason.', 'error');
     } elseif ($c = q("SELECT start_date, end_date FROM leave_applications WHERE user_id = ? AND status IN ('Pending','Approved')
                        AND start_date <= ? AND end_date >= ? LIMIT 1", [$me['id'], $b, $a])->fetch()) {
-        flash("You already have leave covering {$c['start_date']} to {$c['end_date']}.", 'error');
+        flash('You already have leave covering ' . date('d/m/Y', strtotime($c['start_date'])) . ' to ' . date('d/m/Y', strtotime($c['end_date'])) . '.', 'error');
     } else {
         q('INSERT INTO leave_applications (user_id, leave_type, start_date, end_date, days_count, reason) VALUES (?,?,?,?,?,?)',
           [$me['id'], $t, $a, $b, (int) ((strtotime($b) - strtotime($a)) / 86400) + 1, mb_substr(post('reason'), 0, 2000)]);
@@ -159,8 +160,10 @@ require __DIR__ . '/layout/header.php';
       <form method="post" class="grid gap-2 border-t border-zinc-100 p-5 sm:grid-cols-4 sm:items-end">
         <?= csrf_field() ?><input type="hidden" name="action" value="leave">
         <?= att_select('leave_type', ATT_LEAVE_TYPES, '', 'Leave type…', 'required') ?>
-        <input type="date" name="start_date" required class="<?= ATT_FIELD ?>" title="From">
-        <input type="date" name="end_date" class="<?= ATT_FIELD ?>" title="To (leave blank for one day)">
+        <input type="text" name="start_date" required data-dmy placeholder="From DD/MM/YYYY" inputmode="numeric" maxlength="10"
+               pattern="\d{2}/\d{2}/\d{4}" autocomplete="off" class="<?= ATT_FIELD ?>" title="From (DD/MM/YYYY)">
+        <input type="text" name="end_date" data-dmy placeholder="To DD/MM/YYYY" inputmode="numeric" maxlength="10"
+               pattern="\d{2}/\d{2}/\d{4}" autocomplete="off" class="<?= ATT_FIELD ?>" title="To (DD/MM/YYYY) - leave blank for one day">
         <button class="<?= ATT_BTN ?>">Send request</button>
         <input name="reason" required placeholder="Reason" class="<?= ATT_FIELD ?> sm:col-span-4">
       </form>
@@ -171,7 +174,7 @@ require __DIR__ . '/layout/header.php';
           $cls = ['Pending' => 'text-amber-700', 'Approved' => 'text-emerald-700', 'Rejected' => 'text-rose-700'][$l['status']] ?? ''; ?>
           <li class="flex flex-wrap items-center gap-3 px-5 py-2">
             <span class="w-20 text-[12px] font-medium <?= $cls ?>"><?= e($l['status']) ?></span>
-            <span class="flex-1"><?= e($l['leave_type']) ?> · <?= date('j M', strtotime($l['start_date'])) ?><?= $l['end_date'] !== $l['start_date'] ? ' – ' . date('j M', strtotime($l['end_date'])) : '' ?>
+            <span class="flex-1"><?= e($l['leave_type']) ?> · <?= date('d/m/Y', strtotime($l['start_date'])) ?><?= $l['end_date'] !== $l['start_date'] ? ' – ' . date('d/m/Y', strtotime($l['end_date'])) : '' ?>
               <span class="text-zinc-400">(<?= (int) $l['days_count'] ?>d)</span><?= $l['admin_notes'] ? ' <span class="text-zinc-500">— ' . e($l['admin_notes']) . '</span>' : '' ?></span>
             <?php if ($l['status'] === 'Pending'): ?>
               <form method="post" onsubmit="return confirm('Cancel this request?')"><?= csrf_field() ?><input type="hidden" name="action" value="cancel_leave"><input type="hidden" name="id" value="<?= $l['id'] ?>">
@@ -241,6 +244,16 @@ require __DIR__ . '/layout/header.php';
   </section>
 <?php endif; ?>
 </div>
+
+<?php if ($TAB === 'leave'): ?>
+<script>
+// Leave dates are typed as DD/MM/YYYY: keep digits only and put the slashes in for the user.
+document.querySelectorAll('[data-dmy]').forEach(el => el.addEventListener('input', () => {
+  const d = el.value.replace(/\D/g, '').slice(0, 8);
+  el.value = [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/');
+}));
+</script>
+<?php endif; ?>
 
 <?php if ($TAB === 'punch'): ?>
 <script>

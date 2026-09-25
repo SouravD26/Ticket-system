@@ -14,8 +14,8 @@ if (is_super()) { flash('Super Admins read the task sheets in Reports.', 'error'
 require_can('can_fill_tasks', 'the daily task sheet');
 $me = user();
 
-/** Clamp a posted hours value to something sane. */
-function task_hours($v): float { return max(0, min(24, round((float) $v, 2))); }
+/** Clamp a posted time (H:MM or decimal hours) to something sane, as decimal hours. */
+function task_hours($v): float { return max(0, min(24, round(hm_to_hours($v), 2))); }
 
 /** The date the whole page works against. */
 $day = get_('day');
@@ -155,11 +155,11 @@ function status_dot(string $s): string
         <!-- 9. HOURS -->
         <select data-qa="hours" class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none focus:border-brand-400">
           <?php foreach (TASK_HOUR_STEPS as $h): ?>
-            <option value="<?= $h ?>" <?= $h === '0.5' ? 'selected' : '' ?>><?= $h ?> hr</option>
+            <option value="<?= $h ?>" <?= $h === '0.5' ? 'selected' : '' ?>><?= hm($h) ?></option>
           <?php endforeach; ?>
           <option value="custom">Custom…</option>
         </select>
-        <input data-qa="custom" type="number" step="0.25" min="0" max="24" placeholder="hrs"
+        <input data-qa="custom" data-hm type="text" inputmode="numeric" maxlength="5" placeholder="h:mm" pattern="\d{1,2}:[0-5]\d"
                class="hidden w-24 rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400">
 
         <!-- 10. STATUS -->
@@ -225,8 +225,8 @@ function status_dot(string $s): string
       </svg>
       <p class="text-[11px] font-medium text-zinc-500">Total Logged</p>
     </div>
-    <p class="mt-1 text-2xl font-semibold text-zinc-900"><span data-count="hours">0</span> hrs</p>
-    <p class="text-[11px] text-zinc-400">Total Logged Hours</p>
+    <p class="mt-1 text-2xl font-semibold text-zinc-900"><span data-count="hours">0:00</span></p>
+    <p class="text-[11px] text-zinc-400">Total Logged (h:mm)</p>
   </div>
 </div>
 
@@ -300,7 +300,7 @@ function status_dot(string $s): string
             </p>
           </div>
 
-          <span class="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700"><?= (float) $t['hours'] ?> hr</span>
+          <span class="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700"><?= hm($t['hours']) ?></span>
 
           <span title="Status is locked once submitted"
                 class="shrink-0 rounded-md border px-2 py-1.5 text-[11px] font-medium <?= $st['chip'] ?>">
@@ -326,7 +326,7 @@ function status_dot(string $s): string
   <!-- 11 + 12. TOTAL AND SUBMIT -->
   <div class="border-t border-zinc-200 px-3 py-2">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <p class="text-[13px] text-zinc-600">Total Logged: <span class="font-semibold text-zinc-900" data-count="hours">0</span> hrs</p>
+      <p class="text-[13px] text-zinc-600">Total Logged: <span class="font-semibold text-zinc-900" data-count="hours">0:00</span></p>
       <p id="draftNote" class="text-[11px] text-zinc-500">Your entries are saved and can be edited before submission.</p>
     </div>
     <button type="submit" id="submitAll" disabled
@@ -343,7 +343,7 @@ function status_dot(string $s): string
     <span class="inline-flex items-center gap-2">
       <svg class="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       Earlier entries &amp; export
-      <span class="text-[11px] text-zinc-400"><?= (int) $histCount ?> in range · <?= (float) $histHours ?> hrs</span>
+      <span class="text-[11px] text-zinc-400"><?= (int) $histCount ?> in range · <?= hm($histHours) ?></span>
     </span>
   </summary>
 
@@ -369,7 +369,7 @@ function status_dot(string $s): string
         <div>
           <div class="flex items-baseline justify-between">
             <a href="?day=<?= e($d) ?>" class="text-[11px] font-semibold text-zinc-700 hover:text-brand-600"><?= date('D, M j, Y', strtotime($d)) ?></a>
-            <span class="text-[11px] text-zinc-400"><?= array_sum(array_map('floatval', array_column($rows, 'hours'))) ?> hrs</span>
+            <span class="text-[11px] text-zinc-400"><?= hm(array_sum(array_map('floatval', array_column($rows, 'hours')))) ?></span>
           </div>
           <ul class="mt-1 divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white">
             <?php foreach ($rows as $h): ?>
@@ -377,7 +377,7 @@ function status_dot(string $s): string
                 <?= status_dot($h['status']) ?>
                 <span class="min-w-0 flex-1 truncate text-[11px] text-zinc-700"><?= e($h['title']) ?></span>
                 <span class="shrink-0 text-[11px] text-zinc-400"><?= e(TASK_STATUSES[$h['status']] ?? $h['status']) ?></span>
-                <span class="shrink-0 text-[11px] text-zinc-500"><?= (float) $h['hours'] ?>h</span>
+                <span class="shrink-0 text-[11px] text-zinc-500"><?= hm($h['hours']) ?></span>
               </li>
             <?php endforeach; ?>
           </ul>
@@ -417,6 +417,22 @@ function status_dot(string $s): string
       return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(LABELS[k]) + '</option>';
     }).join('');
   }
+  /* Task time is kept as decimal hours and shown / typed as H:MM. */
+  function hm(h) {
+    var m = Math.round((parseFloat(h) || 0) * 60);
+    return Math.floor(m / 60) + ':' + ('0' + (m % 60)).slice(-2);
+  }
+  function hmToHours(s) {
+    var m = /^(\d{1,2}):([0-5]?\d)$/.exec(String(s).trim());
+    var v = m ? parseInt(m[1], 10) + parseInt(m[2], 10) / 60 : parseFloat(s);
+    return isNaN(v) || v < 0 ? 0 : Math.min(24, Math.round(v * 100) / 100);
+  }
+  // H:MM fields: digits only, the colon goes in before the last two.
+  document.addEventListener('input', function (ev) {
+    if (!ev.target.matches('[data-hm]')) return;
+    var d = ev.target.value.replace(/\D/g, '').slice(0, 4);
+    ev.target.value = d.length > 2 ? d.slice(0, d.length - 2) + ':' + d.slice(-2) : d;
+  });
   var INP = 'w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400';
 
   /* ---------- a draft row, drawn to match the saved ones ---------- */
@@ -442,7 +458,7 @@ function status_dot(string $s): string
             (d.description ? '<span class="truncate">' + esc(d.description) + '</span>' : '') +
           '</p>' +
         '</div>' +
-        '<span class="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">' + esc(d.hours) + ' hr</span>' +
+        '<span class="shrink-0 rounded-md bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">' + hm(d.hours) + '</span>' +
         '<span class="shrink-0"><select data-draft-status class="rounded-md border px-2 py-1.5 text-[11px] font-medium outline-none ' + st.chip + '">' +
           opts(d.status) + '</select></span>' +
         '<div class="relative shrink-0">' +
@@ -466,8 +482,8 @@ function status_dot(string $s): string
             '<input data-f="category" value="' + esc(d.category) + '" class="' + INP + '"></div>' +
           '<div><label class="mb-1 block text-[11px] text-zinc-500">Date</label>' +
             '<input data-f="task_date" type="date" max="' + DAY + '" value="' + esc(d.task_date) + '" class="' + INP + '"></div>' +
-          '<div><label class="mb-1 block text-[11px] text-zinc-500">Hours</label>' +
-            '<input data-f="hours" type="number" step="0.25" min="0" max="24" value="' + esc(d.hours) + '" class="' + INP + '"></div>' +
+          '<div><label class="mb-1 block text-[11px] text-zinc-500">Time (h:mm)</label>' +
+            '<input data-f="hours" data-hm type="text" inputmode="numeric" maxlength="5" placeholder="h:mm" pattern="\\d{1,2}:[0-5]\\d" value="' + hm(d.hours) + '" class="' + INP + '"></div>' +
           '<div><label class="mb-1 block text-[11px] text-zinc-500">Status</label>' +
             '<select data-f="status" class="' + INP + '">' + opts(d.status) + '</select></div>' +
         '</div>' +
@@ -508,7 +524,7 @@ function status_dot(string $s): string
     });
     document.querySelectorAll('[data-count]').forEach(function (el) {
       var k = el.dataset.count;
-      if (k === 'hours')    el.textContent = (Math.round(hours * 100) / 100).toFixed(1);
+      if (k === 'hours')    el.textContent = hm(hours);
       else if (k === 'all') el.textContent = rows.length;
       else                  el.textContent = by[k] || 0;
     });
@@ -573,8 +589,7 @@ function status_dot(string $s): string
 
   function hoursValue(line) {
     var sel = qa(line, 'hours');
-    var v = parseFloat(sel.value === 'custom' ? qa(line, 'custom').value : sel.value);
-    return isNaN(v) || v < 0 ? 0 : Math.min(24, v);
+    return hmToHours(sel.value === 'custom' ? qa(line, 'custom').value : sel.value);
   }
 
   /* Every line with a title becomes a draft; blank lines are ignored, short titles block the whole add. */
@@ -666,7 +681,7 @@ function status_dot(string $s): string
       d.title       = t;
       d.description = row.querySelector('[data-f="description"]').value.trim();
       d.category    = row.querySelector('[data-f="category"]').value.trim();
-      d.hours       = parseFloat(row.querySelector('[data-f="hours"]').value) || 0;
+      d.hours       = hmToHours(row.querySelector('[data-f="hours"]').value);
       d.status      = row.querySelector('[data-f="status"]').value;
       d.task_date   = row.querySelector('[data-f="task_date"]').value || DAY;
       persist(); renderDrafts();

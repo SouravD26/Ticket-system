@@ -443,7 +443,7 @@ require __DIR__ . '/layout/header.php';
         <p class="mt-1 text-[12px] text-zinc-500 tabular-nums">
           <?= (int)$taskStats['today_c'] ?> logged today &middot;
           <?= (int)$taskStats['week_c'] ?> this week &middot;
-          <?= (float)$taskStats['week_h'] ?> hrs
+          <?= hm($taskStats['week_h']) ?> h
         </p>
       </div>
       <a href="<?= url('tasks.php') ?>" class="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-[13px] font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50">

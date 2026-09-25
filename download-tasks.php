@@ -43,19 +43,19 @@ if ($format === 'csv') {
     fputcsv($out, ['Generated', date('M j, Y g:i a')]);
     fputcsv($out, []);
 
-    fputcsv($out, ['Date', 'Task', 'Details', 'Hours', 'Status', 'Ticket']);
+    fputcsv($out, ['Date', 'Task', 'Details', 'Time (h:mm)', 'Status', 'Ticket']);
     foreach ($rows as $r) {
         fputcsv($out, [
             date('Y-m-d', strtotime($r['task_date'])),
             $r['title'],
             $r['description'] ?? '',
-            number_format((float) $r['hours'], 2, '.', ''),
+            hm($r['hours']),
             TASK_STATUSES[$r['status']] ?? $r['status'],
             $r['ticket_code'] ?? '',
         ]);
     }
     fputcsv($out, []);
-    fputcsv($out, ['', 'Total entries', count($rows), number_format($totalHours, 2, '.', ''), 'hours']);
+    fputcsv($out, ['', 'Total entries', count($rows), hm($totalHours), 'h:mm']);
     fclose($out);
     exit;
 }
@@ -66,7 +66,7 @@ $pdf = new SimplePdf(
     'Daily task sheet - ' . $me['name'],
     (ROLE_LABELS[$me['role']] ?? $me['role']) . '  |  ' . $range
         . '  |  ' . count($rows) . ' entr' . (count($rows) === 1 ? 'y' : 'ies')
-        . '  |  ' . rtrim(rtrim(number_format($totalHours, 2, '.', ''), '0'), '.') . ' hours',
+        . '  |  ' . hm($totalHours) . ' h',
     [
         // A4 landscape less margins = 770pt of printable width; these must add up to it.
         ['DATE',     75, 'l'],
@@ -74,7 +74,7 @@ $pdf = new SimplePdf(
         ['DETAILS', 270, 'l'],
         ['STATUS',   75, 'l'],
         ['TICKET',   75, 'l'],
-        ['HOURS',    50, 'r'],
+        ['H:MM',     50, 'r'],
     ]
 );
 
@@ -85,7 +85,7 @@ foreach ($rows as $i => $r) {
         $r['description'] ?? '',
         TASK_STATUSES[$r['status']] ?? $r['status'],
         $r['ticket_code'] ?? '-',
-        rtrim(rtrim(number_format((float) $r['hours'], 2, '.', ''), '0'), '.'),
+        hm($r['hours']),
     ], $i % 2 === 1);
 }
 

@@ -85,7 +85,7 @@ $lbl = 'mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-40
   </form>
 
   <div class="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
-    <?php foreach ([[$sum['n'], 'Tasks'], [rtrim(rtrim(number_format((float) $sum['h'], 2), '0'), '.'), 'Hours'], [$sum['people'], 'Employees'], [$sum['days'], 'Days']] as [$v, $l]): ?>
+    <?php foreach ([[$sum['n'], 'Tasks'], [hm($sum['h']), 'Time (h:mm)'], [$sum['people'], 'Employees'], [$sum['days'], 'Days']] as [$v, $l]): ?>
       <div class="rounded-lg border border-zinc-200 bg-white p-3"><p class="text-lg font-semibold tabular-nums text-zinc-900"><?= $v ?></p><p class="text-[11px] text-zinc-500"><?= $l ?></p></div>
     <?php endforeach; ?>
   </div>
@@ -95,7 +95,7 @@ $lbl = 'mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-40
       <table class="w-full text-left text-[13px]">
         <thead class="text-[11px] uppercase tracking-wider text-zinc-400"><tr>
           <th class="px-4 py-2 font-medium">Date</th><th class="px-3 py-2 font-medium">Employee</th><th class="px-3 py-2 font-medium">Task</th>
-          <th class="px-3 py-2 font-medium">Status</th><th class="px-4 py-2 text-right font-medium">Hours</th></tr></thead>
+          <th class="px-3 py-2 font-medium">Status</th><th class="px-4 py-2 text-right font-medium">Time (h:mm)</th></tr></thead>
         <tbody class="divide-y divide-zinc-100">
         <?php $lastDate = null; foreach ($rows as $t): $st = TASK_STATUS_STYLES[$t['status']] ?? TASK_STATUS_STYLES['pending']; ?>
           <tr class="align-top <?= $lastDate !== null && $lastDate !== $t['task_date'] ? 'border-t-2 border-t-zinc-200' : '' ?>">
@@ -107,7 +107,7 @@ $lbl = 'mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-40
               <?php if ($t['category']): ?><span class="mt-1 inline-block rounded bg-zinc-100 px-1.5 text-[11px] text-zinc-600"><?= e($t['category']) ?></span><?php endif; ?></td>
             <td class="px-3 py-2"><span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset <?= $st['chip'] ?>">
               <span class="h-1.5 w-1.5 rounded-full <?= $st['dot'] ?>"></span><?= e(TASK_STATUSES[$t['status']] ?? $t['status']) ?></span></td>
-            <td class="px-4 py-2 text-right tabular-nums"><?= rtrim(rtrim(number_format((float) $t['hours'], 2), '0'), '.') ?></td>
+            <td class="px-4 py-2 text-right tabular-nums"><?= hm($t['hours']) ?></td>
           </tr>
         <?php $lastDate = $t['task_date']; endforeach; ?>
         <?php if (!$rows): ?><tr><td colspan="5" class="px-4 py-10 text-center text-zinc-400">No tasks match these filters.</td></tr><?php endif; ?>
