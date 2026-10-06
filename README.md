@@ -179,3 +179,17 @@ with their mobile number.
 
 The attendance day runs 06:00-06:00 India time (`Asia/Kolkata`, set in
 `includes/config.php`), and punch times always come from the server clock.
+
+## Attendance sync (old attendance app → ticket DB)
+
+`cron/sync_attendance.php` copies punch in / punch out rows from the old app's DB
+(`sanmatob_attendence`) into this app's `attendance` table (`sanmatob_ticket_db`).
+
+1. cPanel → MySQL Databases → add the ticket DB's user to `sanmatob_attendence` (SELECT is enough).
+2. In `includes/config.php` set `ATT_SYNC_DB_NAME` to `sanmatob_attendence` and the `ATT_SYNC_DB_USER` / `ATT_SYNC_DB_PASS` details.
+3. cPanel → Cron Jobs, every minute:
+   `/usr/local/bin/php /home/<cpanel-user>/public_html/cron/sync_attendance.php >/dev/null 2>&1`
+
+The first run adds `attendance.src_att_id`, links rows that came over in the HRMS merge,
+and copies everything; later runs only read rows changed since the previous run.
+Punches by employees who aren't in the ticket `users` table are skipped and listed in the output.

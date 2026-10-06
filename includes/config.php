@@ -45,3 +45,13 @@ ini_set('display_errors', '1'); // set to '0' on live hosting
 //     /api/v1/index.php?route=attendance/today&debug=<key>
 // Clear it again once the problem is found.
 define('API_DEBUG_KEY', '');
+
+// Attendance sync (cron/sync_attendance.php): the old attendance app's DB whose
+// punches are copied into this app. Live: sanmatob_attendence on the same cPanel
+// MySQL (the cPanel DB user must be added to that DB too). Local: hrms_src.
+define('ATT_SYNC_DB_HOST', 'localhost');
+define('ATT_SYNC_DB_NAME', 'hrms_src');
+define('ATT_SYNC_DB_USER', 'root');
+define('ATT_SYNC_DB_PASS', '');
+// Lets the sync be triggered over HTTP (?key=...). Empty = CLI/cron only.
+define('ATT_SYNC_KEY', '');
