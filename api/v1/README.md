@@ -153,6 +153,8 @@ is now `superadmin`.)
 | `POST admin/mark_od` | `user_id`, `date` |
 | `POST admin/mark_comp_off` | `user_id`, `comp_off_date`, `earned_date` |
 | `POST admin/reset_password` | `user_id`, `new_password` (revokes that user's tokens) |
+| `GET  admin/sync_status` | old attendance app → here: `last_run`, `last_src_updated`, `pending_rows`, `source_reachable` |
+| `POST admin/sync_run` | `full?=1`. Runs the sync now; returns `synced`, `skipped`, `missing_user_ids`, `employees_added`, `since`, `log`. 409 `sync_busy` if one is already running |
 
 Admins may add `user_id=` to `attendance/*`, `leave/*` and `profile` to read
 another employee's data; employees requesting anyone but themselves get a 403.

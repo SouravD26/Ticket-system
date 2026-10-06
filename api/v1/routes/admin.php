@@ -464,3 +464,37 @@ function admin_reset_password(mysqli $conn): void {
     error_log("API RESET_PASSWORD: admin {$admin['id']} reset password for user {$uid}");
     ok(['message' => 'Password reset. The employee must sign in again.']);
 }
+
+/* ------------------------------------------------ attendance sync (old app -> here) */
+
+/**
+ * GET admin/sync_status - when the sync from the old attendance app last ran
+ * and how many of its rows have changed since (they go across on the next run).
+ */
+function admin_sync_status(mysqli $conn): void {
+    admin_guard($conn);
+    require_once APP_ROOT . '/includes/att_sync.php';
+    ok(att_sync_status());
+}
+
+/**
+ * POST admin/sync_run - run the sync now instead of waiting for the cron.
+ * full=1 re-copies every row (safe; use only if something looks out of step).
+ */
+function admin_sync_run(mysqli $conn): void {
+    require_method('POST');
+    $admin = admin_guard($conn, true);
+    require_once APP_ROOT . '/includes/att_sync.php';
+
+    $full = (bool)param_int('full');
+    $res  = att_sync($full);
+    if ($res['busy']) fail('A sync is already running. Try again in a minute.', 409, 'sync_busy');
+    if (!$res['ok']) {
+        error_log('API SYNC_RUN failed: ' . ($res['error'] ?? 'unknown'));
+        fail('Sync failed. Nothing was changed; details are in the server error log.', 500, 'sync_failed');
+    }
+
+    error_log("API SYNC_RUN: admin {$admin['id']} ran " . ($full ? 'a full' : 'a') . " sync, {$res['synced']} rows");
+    unset($res['ok'], $res['busy'], $res['error']);
+    ok($res);
+}
