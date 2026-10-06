@@ -159,6 +159,29 @@ another employee's data; employees requesting anyone but themselves get a 403.
 
 ---
 
+### forms (department daily-task Google Forms)
+Digital, Events, Reporting and IT log their daily tasks in their department's
+Google Form. The app draws the form natively; the server forwards answers to the
+same Google Form, so admins see them in Google Forms / its Sheet.
+
+| Endpoint | Body / query |
+|---|---|
+| `GET  forms` | `has_form`, `department`, `form: { label, title, fields[] }` — `null` form when the department has none |
+| `POST forms/submit` | `answers`: object keyed by each field's `key` |
+
+Each field: `key`, `type` (`text` · `textarea` · `radio` · `checkbox` · `date` · `time` · `email`),
+`label`, `required`, `options[]` (radio/checkbox), `is_duration` (time meaning hours:minutes
+spent), `value` (prefill: name, today, current time, department, email).
+
+Answer formats: checkbox → array of options, date → `YYYY-MM-DD`, time → `HH:MM`, others → string.
+
+```json
+POST forms/submit
+{ "answers": { "1871004027": "Anindita Biswas", "462958322": "2026-10-05",
+               "952120863": "15:30", "44015529": ["FACEBOOK", "INSTAGRAM"] } }
+```
+Errors: `422 validation_error` (with `missing[]` labels), `404 no_form`, `502 google_unreachable`.
+
 ## Rules the server enforces
 
 - **Punch time is server time.** A device clock can never set a punch time.

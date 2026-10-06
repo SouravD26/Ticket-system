@@ -140,7 +140,7 @@ if ($route === '' || $route === 'index.php') {
 $group  = $segments[0] ?? '';
 $action = $segments[1] ?? 'index';
 
-$allowed = ['auth', 'profile', 'attendance', 'leave', 'tickets', 'employees', 'admin', 'master', 'meta', 'files'];
+$allowed = ['auth', 'profile', 'attendance', 'leave', 'tickets', 'employees', 'admin', 'master', 'meta', 'files', 'forms'];
 if (!in_array($group, $allowed, true)) {
     fail('Unknown endpoint: ' . $route, 404, 'not_found');
 }

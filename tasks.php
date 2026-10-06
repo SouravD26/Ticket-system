@@ -14,6 +14,23 @@ if (is_super()) { flash('Super Admins read the task sheets in Reports.', 'error'
 require_can('can_fill_tasks', 'the daily task sheet');
 $me = user();
 
+/* Digital, Events, Reporting and IT log their day in their department's Google Form instead. */
+require_once __DIR__ . '/includes/dept_forms.php';
+$myDept = $me['department_id']
+    ? (string) q('SELECT name FROM departments WHERE id = ?', [$me['department_id']])->fetchColumn()
+    : '';
+$deptForm = DEPT_FORMS[$myDept] ?? null;
+
+if ($deptForm && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
+    $ans = $_POST['f'] ?? [];
+    $_SESSION['dept_form_old'] = $ans;
+    $res = dept_form_submit($deptForm, $ans);
+    if ($res['ok']) unset($_SESSION['dept_form_old']);
+    flash($res['message'], $res['ok'] ? 'success' : 'error');
+    redirect('tasks.php');
+}
+
 /** Clamp a posted time (H:MM or decimal hours) to something sane, as decimal hours. */
 function task_hours($v): float { return max(0, min(24, round(hm_to_hours($v), 2))); }
 
@@ -115,11 +132,13 @@ function status_dot(string $s): string
 ?>
 
 <!-- 1. PAGE HEADER -->
+<?php if (!$deptForm): ?>
 <div class="flex flex-wrap items-end justify-between gap-4">
   <div>
     <h2 class="text-xl font-semibold text-zinc-900">Daily Tasks</h2>
     <p class="mt-0.5 text-[13px] text-zinc-500">Quickly log what you worked on today.</p>
   </div>
+  <?php if (!$deptForm): ?>
   <div class="flex items-center gap-2">
     <form method="get">
       <label class="sr-only" for="dayPick">Date</label>
@@ -136,7 +155,12 @@ function status_dot(string $s): string
       + Add Task
     </button>
   </div>
+  <?php endif; ?>
 </div>
+<?php endif; ?>
+
+<?php if ($deptForm) { require __DIR__ . '/layout/dept-form.php'; ?>
+<?php require __DIR__ . '/layout/footer.php'; exit; } ?>
 
 <!-- 2. QUICK ADD -->
 <div class="mt-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
