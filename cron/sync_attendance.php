@@ -1,6 +1,10 @@
 <?php
 /**
- * Attendance sync: old attendance app DB  ->  ticket DB.
+ * Attendance sync, both ways: old attendance app DB  <->  ticket DB.
+ *
+ * Also sends what is done here back to the old app: new employees and their
+ * edits, punches, OD and comp-off (see hrms_exchange() in includes/att_sync.php).
+ * Leave applications have no table there and stay here.
  *
  * Copies every punch in / punch out made in the old attendance app
  * (sanmatob_attendence.attendance) into this app's attendance table, so the
