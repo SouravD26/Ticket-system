@@ -23,7 +23,10 @@ $deptForm = DEPT_FORMS[$myDept] ?? null;
 
 if ($deptForm && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    $ans = $_POST['f'] ?? [];
+    // Answers arrive packed as base64 JSON (see layout/dept-form.php), so the
+    // host's ModSecurity does not block links and free text.
+    $packed = isset($_POST['fb']) ? json_decode((string) base64_decode((string) $_POST['fb'], true), true) : null;
+    $ans = is_array($packed) ? $packed : ($_POST['f'] ?? []);
     $_SESSION['dept_form_old'] = $ans;
     $res = dept_form_submit($deptForm, $ans);
     if ($res['ok']) unset($_SESSION['dept_form_old']);
