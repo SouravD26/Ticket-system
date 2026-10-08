@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $v = [
-            'name' => post('name'), 'employee_id' => post('employee_id'), 'phone' => preg_replace('/\D/', '', post('phone')),
+            'name' => post('name'), 'employee_id' => trim(post('employee_id')) ?: null, 'phone' => preg_replace('/\D/', '', post('phone')),
             'email' => post('email') ?: null, 'department_id' => (int) post('department_id') ?: null,
             'designation' => post('designation') ?: null, 'company' => post('company') ?: null,
             'location' => post('location') ?: null, 'shift_time' => post('shift_time') ?: null,
@@ -69,7 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         elseif (!$v['date_of_joining']) $err = 'Date of joining is required.';
         elseif ($v['status'] === 'Resign' && !$v['date_of_exit']) $err = 'Date of exit is required for a resigned employee.';
         elseif ($v['email'] && !filter_var($v['email'], FILTER_VALIDATE_EMAIL)) $err = 'That email address is not valid.';
-        elseif (q('SELECT id FROM users WHERE (phone = ? OR username = ?) AND id <> ?', [$v['phone'], $v['phone'], $id])->fetch()) $err = 'Another account already uses this phone number.';
+        elseif ($dup = q('SELECT name FROM users WHERE (phone = ? OR username = ?) AND id <> ?', [$v['phone'], $v['phone'], $id])->fetchColumn()) $err = "Mobile number {$v['phone']} already belongs to $dup.";
+        // Checked only when the ID is new or changed, so the duplicates already on
+        // file (listed above the table) do not stop HR saving those people.
+        elseif ($v['employee_id'] !== null && strcasecmp($v['employee_id'], trim((string) ($old['employee_id'] ?? ''))) !== 0
+                && ($dup = q('SELECT name FROM users WHERE TRIM(employee_id) = ? AND id <> ?', [$v['employee_id'], $id])->fetchColumn())) $err = "Employee ID {$v['employee_id']} already belongs to $dup.";
         elseif ($v['email'] && q('SELECT id FROM users WHERE email = ? AND id <> ?', [$v['email'], $id])->fetch()) $err = 'Another account already uses this email.';
         elseif (($_POST['password'] ?? '') !== '' && ($pwErr = password_problem((string) $_POST['password']))) $err = $pwErr;
 
@@ -120,6 +124,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             [$sl, $name, $dept, $loc, $desig, $comp, $doj, $phone, $wo] = array_map(fn($x) => trim((string) $x), array_pad($r, 9, ''));
             $phone = preg_replace('/\D/', '', $phone);
             if ($name === '' || strlen($phone) < 10 || q('SELECT id FROM users WHERE phone = ? OR username = ?', [$phone, $phone])->fetch()) { $skipped++; continue; }
+            $empId = is_numeric($sl) ? 'EMP' . str_pad($sl, 4, '0', STR_PAD_LEFT) : null;
+            if ($empId && q('SELECT id FROM users WHERE TRIM(employee_id) = ?', [$empId])->fetch()) { $skipped++; continue; }
             if ($doj !== '') {
                 $doj = is_numeric($doj) ? \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $doj)->format('Y-m-d')
                                         : (($d = date_create($doj)) ? $d->format('Y-m-d') : null);
@@ -129,11 +135,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   date_of_joining, week_off, status, password_set, is_active)
                VALUES (?,?,?,?,"employee",?,?,?,?,?,?,?,"Working",0,1)',
               [$name, $phone, $phone, password_hash(bin2hex(random_bytes(8)), PASSWORD_DEFAULT),
-               is_numeric($sl) ? 'EMP' . str_pad($sl, 4, '0', STR_PAD_LEFT) : null, $depts[$dept] ?? null,
+               $empId, $depts[$dept] ?? null,
                $loc ?: null, $desig ?: null, $comp ?: null, $doj ?: null, in_array($wo, WEEKDAYS, true) ? $wo : null]);
             $added++;
         }
-        flash("Import finished: $added added, $skipped skipped (blank, bad phone or already present). New employees need a password set.");
+        flash("Import finished: $added added, $skipped skipped (blank, bad phone, or phone / employee ID already in use). New employees need a password set.");
         redirect('hrms-employees.php');
     }
 }
@@ -160,6 +166,11 @@ $per = 50; $page = max(1, (int) get_('page', 1)); $pages = max(1, (int) ceil($to
 $list = q("SELECT u.*, d.name AS dept_name FROM users u LEFT JOIN departments d ON d.id = u.department_id
            WHERE $sqlWhere ORDER BY u.name LIMIT $per OFFSET " . (($page - 1) * $per), $args)->fetchAll();
 
+// Employee IDs held by more than one working person (left over from the old app); HR fixes these by hand.
+$dupIds = q("SELECT TRIM(employee_id) eid, GROUP_CONCAT(name ORDER BY name SEPARATOR ', ') who FROM users
+             WHERE TRIM(COALESCE(employee_id, '')) <> '' AND status = 'Working'
+             GROUP BY TRIM(employee_id) HAVING COUNT(*) > 1 ORDER BY eid")->fetchAll();
+
 $photoOf = fn(int $id) => (bool) glob(ATT_DIR . "/employee_photos/$id.{jpg,jpeg,png}", GLOB_BRACE);
 $qs = fn(array $o) => http_build_query(array_filter(array_merge($f, $o), fn($x) => $x !== '' && $x !== 0));
 
@@ -170,6 +181,15 @@ require __DIR__ . '/layout/header.php';
 $lbl = 'mb-1 block text-[11px] font-medium uppercase tracking-wider text-zinc-400';
 ?>
 <div class="mx-auto max-w-6xl space-y-4">
+
+<?php if ($dupIds && !$showForm): ?>
+  <details class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-900">
+    <summary class="cursor-pointer font-semibold"><?= count($dupIds) ?> employee ID<?= count($dupIds) > 1 ? 's are' : ' is' ?> shared by more than one person - give each person a unique ID</summary>
+    <ul class="mt-2 space-y-0.5">
+      <?php foreach ($dupIds as $d): ?><li><span class="font-semibold tabular-nums"><?= e($d['eid']) ?></span>: <?= e($d['who']) ?></li><?php endforeach; ?>
+    </ul>
+  </details>
+<?php endif; ?>
 
 <?php if ($showForm): $e = $emp ?: ['id' => 0, 'status' => 'Working', 'role' => 'employee'];
   // Closing the pop-up returns to the list exactly as it was filtered and paged.

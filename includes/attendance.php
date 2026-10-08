@@ -351,8 +351,9 @@ function att_grid(array $users, string $from, string $to): array
     $grid = [];
     foreach ($users as $u) {
         $id = (int) $u['id'];
-        $leftAfter = ($u['status'] ?? '') === 'Resign' && !empty($u['date_of_exit'])
-            ? date('Y-m-t', strtotime($u['date_of_exit'])) : null;
+        // A resigned person's days stop at their exit date (resign date if no exit date).
+        $exit = ($u['status'] ?? '') === 'Resign' ? ($u['date_of_exit'] ?: ($u['resign_date'] ?? null)) : null;
+        $leftAfter = $exit ? date('Y-m-d', strtotime($exit)) : null;
         // Nobody is absent before their first day, or after a future date has arrived.
         $joined = !empty($u['date_of_joining']) ? date('Y-m-d', strtotime($u['date_of_joining'])) : null;
         $today  = att_workday();

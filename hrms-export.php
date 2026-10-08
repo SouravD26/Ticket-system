@@ -51,10 +51,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!strtotime($from) || !strtotime($to) || $to < $from || (strtotime($to) - strtotime($from)) > 62 * 86400) {
         flash('Choose a date range of up to two months.', 'error'); redirect('hrms-export.php');
     }
-    // A resigned person still appears for the month they left in.
+    // A resigned person appears only in a range that includes days before they
+    // left (their columns stop at the exit date); from the next month on, never.
+    $exitOf = fn($p) => $p['date_of_exit'] ?: $p['resign_date'];
     $people = array_filter(export_people($_POST, true),
-        fn($p) => $p['status'] === 'Working' || ($p['date_of_exit'] && date('Y-m-t', strtotime($p['date_of_exit'])) >= $from));
-    if (!$people) { flash('Nobody matches those filters.', 'error'); redirect('hrms-export.php'); }
+        fn($p) => $p['status'] === 'Working' || ($exitOf($p) && date('Y-m-d', strtotime($exitOf($p))) >= $from));
+    if (!$people) {
+        $who = post('user') ? q('SELECT name, status, date_of_exit, resign_date FROM users WHERE id = ?', [(int) post('user')])->fetch() : null;
+        flash($who && $who['status'] === 'Resign'
+            ? $who['name'] . ' resigned' . ($exitOf($who) ? ' (left ' . date('d M Y', strtotime($exitOf($who))) . ')' : '') . '; there is no attendance to download for this period.'
+            : 'Nobody matches those filters.', 'error');
+        redirect('hrms-export.php');
+    }
 
     $grid = att_grid(array_values($people), $from, $to);
     $days = [];

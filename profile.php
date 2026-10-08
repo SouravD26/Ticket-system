@@ -21,6 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('Name and a valid email are required.', 'error');
         } elseif (q('SELECT id FROM users WHERE email = ? AND id <> ?', [$email, $me['id']])->fetch()) {
             flash('That email belongs to another account.', 'error');
+        } elseif (post('phone') !== '' && q('SELECT id FROM users WHERE (phone = ? OR username = ?) AND id <> ?', [post('phone'), post('phone'), $me['id']])->fetch()) {
+            flash('That mobile number belongs to another account.', 'error');
         } else {
             q('UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?',
               [$name, $email, post('phone') ?: null, $me['id']]);
