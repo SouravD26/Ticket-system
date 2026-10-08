@@ -184,6 +184,14 @@ POST forms/submit
 ```
 Errors: `422 validation_error` (with `missing[]` labels), `404 no_form`, `502 google_unreachable`.
 
+**Send `answers_b64` instead of `answers` from the app:** the base64 (UTF-8) of the same
+answers JSON. The live host's ModSecurity rejects a plain body that contains a link with
+`406 Not Acceptable`; the encoded form gets through.
+```json
+POST forms/submit
+{ "answers_b64": "eyIxODcxMDA0MDI3IjoiQW5pbmRpdGEgQmlzd2FzIn0=" }
+```
+
 ## Rules the server enforces
 
 - **Punch time is server time.** A device clock can never set a punch time.

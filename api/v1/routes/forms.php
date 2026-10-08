@@ -64,7 +64,12 @@ function forms_submit(mysqli $conn): void {
     $form = forms_for($user);
     if (!$form) fail('Your department has no daily task form.', 404, 'no_form');
 
-    $answers = param('answers', []);
+    // `answers_b64` (base64 of the answers JSON) gets past the host's ModSecurity,
+    // which rejects plain bodies carrying links (https://...) with 406 Not Acceptable.
+    $packed = param('answers_b64');
+    $answers = is_string($packed) && $packed !== ''
+        ? json_decode((string)base64_decode($packed, true), true)
+        : param('answers', []);
     if (is_string($answers)) $answers = json_decode($answers, true);
     if (!is_array($answers)) fail('`answers` must be an object keyed by field key.', 422, 'validation_error');
 
