@@ -106,7 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('This ticket is already open.', 'error');
         } else {
             reraise_ticket($ticket, post('reason'));
-            flash('Raised again - it is back with the Super Admin to be assigned.');
+            flash(($ticket['category'] ?? 'it') === 'facility'
+                ? 'Raised again - it is back with the facility team.'
+                : 'Raised again - it is back with the Super Admin to be assigned.');
         }
         redirect('ticket-view.php?id=' . $ticket['id']);
     }
@@ -239,11 +241,11 @@ function attachment_list(array $items): string
     <?php if (is_ticket_requester($ticket) && $awaitingAck): ?>
       <div class="rounded-lg border border-emerald-300 bg-emerald-50 p-6">
         <h3 class="text-[13px] font-semibold text-emerald-700">
-          <?= e($ticket['agent_name'] ?? 'IT') ?> has marked this complete
+          <?= e($ticket['agent_name'] ?? 'Support') ?> has marked this complete
         </h3>
         <p class="mt-1 text-[13px] text-zinc-500">
           Please confirm the problem is actually sorted. Acknowledging closes the ticket; if it is not fixed,
-          raising it again sends it back to the Super Admin, who will hand it to an IT person afresh.
+          raising it again sends it back<?= ($ticket['category'] ?? 'it') === 'facility' ? ' to the facility team' : ' to the Super Admin, who will hand it to an IT person afresh' ?>.
         </p>
         <form method="post" class="mt-5">
           <?= csrf_field() ?>
@@ -312,6 +314,7 @@ function attachment_list(array $items): string
       <dl class="mt-4 space-y-3 text-[13px]">
         <?php
         $details = [
+          'Ticket for' => TICKET_CATEGORIES[$ticket['category'] ?? 'it'] ?? 'IT',
           'Requester'  => $ticket['requester_name'],
           'Email'      => $ticket['requester_email'],
           'Department' => $ticket['dept_name'] ?? '—',
@@ -334,7 +337,7 @@ function attachment_list(array $items): string
       </dl>
     </div>
 
-    <?php if (is_staff()): ?>
+    <?php if (is_staff() || can_work_tickets()): ?>
       <?php if (can_work_tickets()): ?>
       <form method="post" class="rounded-lg border border-zinc-200 bg-white shadow-sm p-4">
         <?= csrf_field() ?>

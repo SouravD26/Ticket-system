@@ -15,7 +15,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deptId   = (int) ($myDept['id'] ?? 0);
     $location = post('location');
     $trained  = post('trained_before');
+    $category = post('category');
+    $facility = facility_user();
 
+    if (!isset(TICKET_CATEGORIES[$category])) $errors[] = 'Please choose whether this is for IT or Facility.';
+    if ($category === 'facility' && !$facility) $errors[] = 'Facility tickets cannot be raised right now - the facility account is not set up.';
     if (mb_strlen($subject) < 5)             $errors[] = 'Subject must be at least 5 characters.';
     if (!in_array($location, ticket_locations(), true)) $errors[] = 'Please choose a location.';
     if (!in_array($trained, ['yes', 'no'], true)) $errors[] = 'Please tell us whether you have been trained to troubleshoot this issue.';
@@ -23,8 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         $code = next_ticket_code();
-        q('INSERT INTO tickets (code, subject, body, user_id, department_id, location, trained_before) VALUES (?,?,?,?,?,?,?)',
-          [$code, $subject, $body, user()['id'], $deptId ?: null, $location, $trained]);
+        // IT tickets wait for the Super Admin to assign them; facility tickets go straight to the facility person.
+        $agent = $category === 'facility' ? (int) $facility['id'] : null;
+        q('INSERT INTO tickets (code, subject, body, user_id, department_id, location, trained_before, category, assigned_to, assigned_at)
+           VALUES (?,?,?,?,?,?,?,?,?, IF(? IS NULL, NULL, NOW()))',
+          [$code, $subject, $body, user()['id'], $deptId ?: null, $location, $trained, $category, $agent, $agent]);
         $ticketId = (int) db()->lastInsertId();
 
         try {
@@ -35,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         log_activity($ticketId, 'created', 'Ticket opened');
+        if ($agent) log_activity($ticketId, 'assigned', 'Facility ticket - assigned to ' . $facility['name']);
         flash('Ticket ' . $code . ' has been created.');
         redirect('ticket-view.php?id=' . $ticketId);
     }
@@ -54,6 +62,17 @@ require __DIR__ . '/layout/header.php';
     <p class="mt-1 text-[13px] text-zinc-500">Give us as much detail as you can — it speeds things up.</p>
 
     <div class="mt-6 space-y-5">
+      <div>
+        <label for="category" class="mb-1.5 block text-[13px] text-zinc-600">Ticket for</label>
+        <select id="category" name="category" required
+                class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25">
+          <?php foreach (TICKET_CATEGORIES as $val => $lbl): ?>
+            <option value="<?= $val ?>" <?= ($_POST['category'] ?? 'it') === $val ? 'selected' : '' ?>><?= $lbl ?></option>
+          <?php endforeach; ?>
+        </select>
+        <p class="mt-1.5 text-[11px] text-zinc-500">IT for computers, network and software. Facility for building, furniture, electrical and housekeeping.</p>
+      </div>
+
       <div>
         <label class="mb-1.5 block text-[13px] text-zinc-600">Subject</label>
         <input name="subject" required value="<?= e($_POST['subject'] ?? '') ?>" placeholder="Short summary of the problem"

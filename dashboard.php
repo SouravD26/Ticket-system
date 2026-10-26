@@ -61,7 +61,7 @@ if (is_super() || is_admin()) {
                    WHERE t.assigned_to IS NULL AND t.status <> "closed"
                    ORDER BY t.created_at ASC LIMIT 50';
     $queueArgs  = [];
-} elseif (is_it()) {
+} elseif (is_it() || is_facility()) {
     $queueTitle = 'On your desk';
     $queueSql   = 'SELECT t.*, u.name requester_name, a.name agent_name
                    FROM tickets t JOIN users u ON u.id = t.user_id

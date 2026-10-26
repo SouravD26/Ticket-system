@@ -36,7 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('That ticket cannot be raised again right now.', 'error');
         } else {
             reraise_ticket($t, post('reason'));
-            flash($t['code'] . ' raised again — it is back with the Super Admin to be assigned.');
+            flash($t['code'] . ' raised again — it is back with '
+                . (($t['category'] ?? 'it') === 'facility' ? 'the facility team.' : 'the Super Admin to be assigned.'));
         }
     }
     redirect('tickets.php?' . http_build_query($_GET));
@@ -213,6 +214,7 @@ require __DIR__ . '/layout/header.php';
                 <a href="<?= url('ticket-view.php?id=' . $t['id']) ?>" class="block max-w-xs">
                   <span class="block truncate font-medium text-zinc-900"><?= e($t['subject']) ?></span>
                   <span class="text-[11px] text-brand-600"><?= e($t['code']) ?></span>
+                  <?php if (($t['category'] ?? 'it') === 'facility'): ?><span class="ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-600/20">Facility</span><?php endif; ?>
                 </a>
               </td>
               <td class="px-3 py-2 text-zinc-600"><?= e($t['requester_name']) ?></td>

@@ -85,13 +85,38 @@ function is_it(): bool
     }
     return $yes;
 }
+/**
+ * Facility tickets (building, furniture, electrical...) all go to one person rather
+ * than to IT. He is found by his mobile number, which is unique and is his login;
+ * HRMS employee IDs are shared by several people, so the ID alone is not enough.
+ */
+const FACILITY_PHONE = '9265464033';
+const TICKET_CATEGORIES = ['it' => 'IT', 'facility' => 'Facility'];
+
+/** The facility person's account, or null when it is missing or inactive. */
+function facility_user(): ?array
+{
+    static $u = false;
+    if ($u === false) {
+        $u = q('SELECT id, name FROM users WHERE phone = ? AND is_active = 1 LIMIT 1', [FACILITY_PHONE])->fetch() ?: null;
+    }
+    return $u;
+}
+
+/** Is the signed-in person the one who handles facility tickets? */
+function is_facility(): bool
+{
+    $f = facility_user();
+    return $f !== null && (int) $f['id'] === (int) (user()['id'] ?? 0);
+}
+
 function is_employee(): bool { return role() === 'employee'; }
 function is_hr(): bool       { return role() === 'hr'; }
 
 /** Sees every ticket, including internal notes. */
 function is_staff(): bool          { return in_array(role(), ['superadmin', 'admin', 'it'], true); }
 /** May change status and post internal notes. */
-function can_work_tickets(): bool  { return is_super() || is_it(); }
+function can_work_tickets(): bool  { return is_super() || is_it() || is_facility(); }
 /** Only the Super Admin grades a ticket — priority is set when it is assigned. */
 function can_set_priority(): bool  { return is_super(); }
 /** Only the Super Admin assigns, and re-assigns, a ticket to IT staff. */
@@ -216,7 +241,7 @@ function is_ticket_requester(array $t): bool { return (int)$t['user_id'] === (in
 /** The assignee logs the work they did on this ticket; the Super Admin can too. */
 function can_log_work(array $t): bool
 {
-    return is_super() || (is_it() && (int)$t['assigned_to'] === (int)(user()['id'] ?? 0));
+    return is_super() || ((is_it() || is_facility()) && (int)$t['assigned_to'] === (int)(user()['id'] ?? 0));
 }
 
 function initials(string $name): string
@@ -322,7 +347,7 @@ function ticket_scope(string $a = 't'): array
 {
     if (is_super() || is_admin())  return ['', []];
     $id = (int) user()['id'];
-    if (is_it()) return ["($a.assigned_to = ? OR $a.user_id = ?)", [$id, $id]];
+    if (is_it() || is_facility()) return ["($a.assigned_to = ? OR $a.user_id = ?)", [$id, $id]];
     return ["$a.user_id = ?", [$id]];
 }
 
@@ -464,10 +489,12 @@ function acknowledge_ticket(array $ticket): void
  */
 function reraise_ticket(array $ticket, string $reason = ''): void
 {
-    q('UPDATE tickets SET status = "open", assigned_to = NULL, assigned_at = NULL,
+    // A facility ticket has only one person to go back to, so it goes straight to him.
+    $facility = ($ticket['category'] ?? 'it') === 'facility' ? facility_user() : null;
+    q('UPDATE tickets SET status = "open", assigned_to = ?, assigned_at = IF(? IS NULL, NULL, NOW()),
               completed_at = NULL, acknowledged_at = NULL, closed_at = NULL,
               reopen_count = reopen_count + 1
-       WHERE id = ?', [$ticket['id']]);
+       WHERE id = ?', [$facility['id'] ?? null, $facility['id'] ?? null, $ticket['id']]);
 
     if ($reason !== '') {
         q('INSERT INTO ticket_replies (ticket_id, user_id, message, is_internal) VALUES (?,?,?,0)',
@@ -475,7 +502,7 @@ function reraise_ticket(array $ticket, string $reason = ''): void
     }
     log_activity((int) $ticket['id'], 'reopened',
         'Requester marked it not resolved' . ($reason !== '' ? ' - ' . mb_substr($reason, 0, 160) : '')
-        . ' - returned to the assignment queue');
+        . ($facility ? ' - sent back to ' . $facility['name'] : ' - returned to the assignment queue'));
 }
 
 /** Designations that mean "this person fixes IT problems". */
@@ -520,7 +547,7 @@ function find_ticket(int $id): ?array
     if (!$t) return null;
     $me = (int) user()['id'];
     if (is_super() || is_admin()) return $t;
-    if (is_it() && ((int)$t['assigned_to'] === $me || (int)$t['user_id'] === $me)) return $t;
+    if ((is_it() || is_facility()) && ((int)$t['assigned_to'] === $me || (int)$t['user_id'] === $me)) return $t;
     if ((int)$t['user_id'] === $me) return $t;
     return null;
 }

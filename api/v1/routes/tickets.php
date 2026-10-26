@@ -66,6 +66,8 @@ function tickets_scope(array $u): array {
     // role === 'it': IT staff here are the IT *department*, whose accounts are
     // ordinary employees, and they could not see their own assigned tickets.
     if (tickets_can_work($u)) return ['(t.assigned_to = ? OR t.user_id = ?)', 'ii', [$uid, $uid]];
+    // The facility person is an ordinary employee who is handed facility tickets.
+    if (($u['phone'] ?? '') === '9265464033') return ['(t.assigned_to = ? OR t.user_id = ?)', 'ii', [$uid, $uid]];
     return ['t.user_id = ?', 'i', [$uid]];
 }
 
@@ -343,11 +345,21 @@ function tickets_create(mysqli $conn): void {
     $body    = (string)$in['body'];
     $uid     = (int)$user['id'];
 
+    // category is optional ("it" by default). Facility tickets go straight to the facility person.
+    $category = strtolower((string)param('category', 'it'));
+    if (!in_array($category, ['it', 'facility'], true)) fail('category must be "it" or "facility".', 422, 'validation_error');
+    $agent = null;
+    if ($category === 'facility') {
+        $f = fetch_one($conn, "SELECT id FROM users WHERE phone = '9265464033' AND is_active = 1 LIMIT 1");
+        if (!$f) fail('Facility tickets cannot be raised right now.', 422, 'validation_error');
+        $agent = (int)$f['id'];
+    }
+
     $stmt = $conn->prepare(
-        "INSERT INTO tickets (code, subject, body, user_id, department_id, location, trained_before)
-         VALUES (?,?,?,?,?,?,?)"
+        "INSERT INTO tickets (code, subject, body, user_id, department_id, location, trained_before, category, assigned_to, assigned_at)
+         VALUES (?,?,?,?,?,?,?,?,?, IF(? IS NULL, NULL, NOW()))"
     );
-    $stmt->bind_param('sssiiss', $code, $subject, $body, $uid, $deptId, $in['location'], $trained);
+    $stmt->bind_param('sssiisssii', $code, $subject, $body, $uid, $deptId, $in['location'], $trained, $category, $agent, $agent);
     if (!$stmt->execute()) {
         $stmt->close();
         fail('Could not create the ticket. Please try again.', 500, 'db_error');
