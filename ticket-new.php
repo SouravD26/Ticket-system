@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (mb_strlen($body) < 10)               $errors[] = 'Please describe the issue in at least 10 characters.';
 
     if (!$errors) {
+        ensure_ticket_category();
         $code = next_ticket_code();
         // IT tickets wait for the Super Admin to assign them; facility tickets go straight to the facility person.
         $agent = $category === 'facility' ? (int) $facility['id'] : null;

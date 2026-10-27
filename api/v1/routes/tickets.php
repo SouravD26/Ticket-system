@@ -348,6 +348,10 @@ function tickets_create(mysqli $conn): void {
     // category is optional ("it" by default). Facility tickets go straight to the facility person.
     $category = strtolower((string)param('category', 'it'));
     if (!in_array($category, ['it', 'facility'], true)) fail('category must be "it" or "facility".', 422, 'validation_error');
+    // Servers that never ran install/migrate.php lack the column; add it rather than fail.
+    if (!fetch_one($conn, "SHOW COLUMNS FROM tickets LIKE 'category'")) {
+        $conn->query("ALTER TABLE tickets ADD COLUMN `category` ENUM('it','facility') NOT NULL DEFAULT 'it'");
+    }
     $agent = null;
     if ($category === 'facility') {
         $f = fetch_one($conn, "SELECT id FROM users WHERE phone = '9265464033' AND is_active = 1 LIMIT 1");

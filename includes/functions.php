@@ -103,6 +103,17 @@ function facility_user(): ?array
     return $u;
 }
 
+/**
+ * tickets.category arrived with facility tickets. A server where install/migrate.php
+ * was never run would fail on every new ticket, so add it here when it is missing.
+ */
+function ensure_ticket_category(): void
+{
+    if (!q("SHOW COLUMNS FROM tickets LIKE 'category'")->fetch()) {
+        db()->exec("ALTER TABLE tickets ADD COLUMN `category` ENUM('it','facility') NOT NULL DEFAULT 'it'");
+    }
+}
+
 /** Is the signed-in person the one who handles facility tickets? */
 function is_facility(): bool
 {
