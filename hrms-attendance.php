@@ -14,42 +14,53 @@ if ($userId) {
     $person = q('SELECT u.*, d.name dept_name FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE u.id = ?', [$userId])->fetch();
     if (!$person) redirect('hrms-attendance.php');
     $month = preg_match('/^\d{4}-\d{2}$/', get_('month')) ? get_('month') : date('Y-m');
-    $from = "$month-01"; $to = min(date('Y-m-t', strtotime($from)), date('Y-m-d'));
+    // A From-To range, when given, replaces the month.
+    [$rFrom, $rTo] = att_range(get_('from'), get_('to'), '');
+    if ($rFrom) { $from = $rFrom; $to = $rTo; }
+    else        { $from = "$month-01"; $to = min(date('Y-m-t', strtotime($from)), date('Y-m-d')); }
     $grid = att_grid([$person], $from, max($from, $to))[$userId] ?? [];
     $punches = [];
-    foreach (q('SELECT * FROM attendance WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY id', [$userId, $from, date('Y-m-t', strtotime($from))]) as $r) {
+    foreach (q('SELECT * FROM attendance WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY id', [$userId, $from, max($from, $to)]) as $r) {
         $punches[$r['date']][] = $r;
     }
     $count = array_count_values(array_column($grid, 'code'));
     $pageTitle = $person['name'] . ' — Attendance';
 } else {
-    /* ---------- everyone, one day ---------- */
-    $date = strtotime(get_('date')) ? date('Y-m-d', strtotime(get_('date'))) : att_workday();
-    $f = ['dept' => dept_filter_id(get_('dept')), 'company' => get_('company'), 'location' => get_('location'), 'show' => 'present'];
-    // Working staff, plus anyone who actually punched that day - a since-resigned
+    /* ---------- everyone, a range of days ---------- */
+    // Older links send a single ?date=; it becomes a one-day range.
+    $one = strtotime(get_('date')) ? date('Y-m-d', strtotime(get_('date'))) : '';
+    [$from, $to] = att_range(get_('from', $one), get_('to', $one), att_workday());
+    $f = ['dept' => dept_filter_id(get_('dept')), 'company' => get_('company'), 'location' => get_('location'),
+          'q' => get_('q'), 'show' => 'present'];
+    // Working staff, plus anyone who actually punched in the range - a since-resigned
     // employee still belongs on the sheet for the days they worked.
     $where = ["u.phone IS NOT NULL", "u.role NOT IN ('superadmin','admin','hod','face_operator')",
-              "(u.status = 'Working' OR u.id IN (SELECT user_id FROM attendance WHERE date = ?))"];
-    $args = [$date];
+              "(u.status = 'Working' OR u.id IN (SELECT user_id FROM attendance WHERE date BETWEEN ? AND ?))"];
+    $args = [$from, $to];
+    if ($f['q'] !== '') { $where[] = '(u.name LIKE ? OR u.employee_id LIKE ?)'; array_push($args, "%{$f['q']}%", "%{$f['q']}%"); }
     if ($f['dept'])     { $where[] = 'u.department_id = ?'; $args[] = $f['dept']; }
     if ($f['company'])  { $where[] = 'u.company = ?';  $args[] = $f['company']; }
     if ($f['location']) { $where[] = 'u.location = ?'; $args[] = $f['location']; }
     $people = q('SELECT u.id, u.name, u.employee_id, u.week_off, u.status, u.date_of_joining, u.date_of_exit, u.location, d.name dept_name
                  FROM users u LEFT JOIN departments d ON d.id = u.department_id WHERE ' . implode(' AND ', $where) . ' ORDER BY d.name, u.name', $args)->fetchAll();
-    $grid = att_grid($people, $date, $date);
+    $grid = att_grid($people, $from, $to);
     $punches = [];
-    foreach (q('SELECT * FROM attendance WHERE date = ? ORDER BY id', [$date]) as $r) $punches[$r['user_id']][] = $r;
-    $count = array_count_values(array_map(fn($p) => $grid[$p['id']][$date]['code'], $people));
-    // The daily list is intentionally present-only.
-    $people = array_filter($people, fn($p) => isset($punches[$p['id']]));
+    foreach (q('SELECT * FROM attendance WHERE date BETWEEN ? AND ? ORDER BY id', [$from, $to]) as $r) $punches[$r['user_id']][$r['date']][] = $r;
+    $count = [];
+    foreach ($people as $p) foreach ($grid[$p['id']] ?? [] as $g) $count[$g['code']] = ($count[$g['code']] ?? 0) + 1;
+    // The list is intentionally present-only: one row per person per day they punched, newest day first.
+    $rows = [];
+    for ($d = $to; $d >= $from; $d = date('Y-m-d', strtotime("$d -1 day"))) {
+        foreach ($people as $p) if (isset($punches[$p['id']][$d])) $rows[] = [$p, $d];
+    }
 
-    // The counters above the table stay for the whole day; only the rows are paged.
+    // The counters above the table cover the whole range; only the rows are paged.
     $per   = 20;
-    $total = count($people);
+    $total = count($rows);
     $pages = max(1, (int) ceil($total / $per));
     $page  = min($pages, max(1, (int) get_('page', 1)));
-    $people = array_slice(array_values($people), ($page - 1) * $per, $per);
-    $qs = fn(array $o) => http_build_query(array_filter(array_merge(['date' => $date], $f, $o), fn($x) => $x !== '' && $x !== 0));
+    $rows  = array_slice($rows, ($page - 1) * $per, $per);
+    $qs = fn(array $o) => http_build_query(array_filter(array_merge(['from' => $from, 'to' => $to], $f, $o), fn($x) => $x !== '' && $x !== 0));
     $pageTitle = 'Attendance';
 }
 
@@ -90,8 +101,13 @@ $stats = ['P' => 'Present', 'A' => 'Absent', 'L' => 'Leave', 'WO' => 'Week off',
       <p class="text-[15px] font-semibold text-zinc-900"><?= e($person['name']) ?></p>
       <p class="text-[12px] text-zinc-500"><?= e(implode(' · ', array_filter([$person['employee_id'], $person['dept_name'], $person['location'], $person['week_off'] ? 'Week off ' . $person['week_off'] : '']))) ?></p>
     </div>
-    <form class="ml-auto"><input type="hidden" name="user" value="<?= $userId ?>">
-      <input type="month" name="month" value="<?= e($month) ?>" max="<?= date('Y-m') ?>" onchange="this.form.submit()" class="<?= ATT_FIELD ?> !w-44"></form>
+    <form class="ml-auto flex flex-wrap items-center gap-2"><input type="hidden" name="user" value="<?= $userId ?>">
+      <input type="month" name="month" value="<?= e($month) ?>" max="<?= date('Y-m') ?>" onchange="this.form.from.value = this.form.to.value = ''; this.form.submit()" class="<?= ATT_FIELD ?> !w-44">
+      <span class="text-[12px] text-zinc-400">or</span>
+      <input type="date" name="from" value="<?= $rFrom ? e($from) : '' ?>" max="<?= date('Y-m-d') ?>" title="From" class="<?= ATT_FIELD ?> !w-40">
+      <span class="text-[12px] text-zinc-400">to</span>
+      <input type="date" name="to" value="<?= $rFrom ? e($to) : '' ?>" max="<?= date('Y-m-d') ?>" title="To" class="<?= ATT_FIELD ?> !w-40">
+      <button class="<?= ATT_BTN2 ?>">Show</button></form>
   </div>
   <div class="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
     <?php foreach ($stats as $k => $l): ?>
@@ -111,7 +127,9 @@ $stats = ['P' => 'Present', 'A' => 'Absent', 'L' => 'Leave', 'WO' => 'Week off',
 
 <?php else: ?>
   <form class="flex flex-wrap items-end gap-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
-    <input type="date" name="date" value="<?= e($date) ?>" max="<?= date('Y-m-d') ?>" class="<?= ATT_FIELD ?> !w-40">
+    <label class="text-[11px] text-zinc-500">Name or employee ID<input name="q" value="<?= e($f['q']) ?>" placeholder="Search…" class="<?= ATT_FIELD ?> !w-48"></label>
+    <label class="text-[11px] text-zinc-500">From<input type="date" name="from" value="<?= e($from) ?>" max="<?= date('Y-m-d') ?>" class="<?= ATT_FIELD ?> !w-40"></label>
+    <label class="text-[11px] text-zinc-500">To<input type="date" name="to" value="<?= e($to) ?>" max="<?= date('Y-m-d') ?>" class="<?= ATT_FIELD ?> !w-40"></label>
     <div class="w-40"><?= att_select('dept', array_column(all_departments(), 'name', 'id'), (string) $f['dept'], 'All departments') ?></div>
     <div class="w-40"><?= att_select('company', att_companies(), $f['company'], 'All companies') ?></div>
     <div class="w-36"><?= att_select('location', att_locations(), $f['location'], 'All locations') ?></div>
@@ -125,33 +143,35 @@ $stats = ['P' => 'Present', 'A' => 'Absent', 'L' => 'Leave', 'WO' => 'Week off',
     <?php endforeach; ?>
   </div>
   <p class="text-[11px] text-zinc-500">
-    <b><?= date('D, j M Y', strtotime($date)) ?></b> runs 6:00 AM to 6:00 AM the next morning — a night shift that ends after midnight counts as this one day.
+    <b><?= $from === $to ? date('D, j M Y', strtotime($from)) : date('j M Y', strtotime($from)) . ' – ' . date('j M Y', strtotime($to)) ?></b> (up to 92 days at a time).
+    Each day runs 6:00 AM to 6:00 AM the next morning — a night shift that ends after midnight counts as this one day.
     <b>Absent</b> is the fallback: no punch, no week off, no on-duty, no comp-off, no approved leave and no holiday. Days before someone joined are left blank.
   </p>
   <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
     <div class="overflow-x-auto">
     <table class="w-full text-left text-[13px]">
-      <thead class="text-[11px] uppercase tracking-wider text-zinc-400"><tr><th class="px-4 py-2 font-medium">Employee</th><th class="px-2 py-2 font-medium"></th>
+      <thead class="text-[11px] uppercase tracking-wider text-zinc-400"><tr><th class="px-4 py-2 font-medium">Date</th><th class="px-4 py-2 font-medium">Employee</th><th class="px-2 py-2 font-medium"></th>
         <th class="px-3 py-2 font-medium">First in</th><th class="px-3 py-2 font-medium">Last out</th><th class="px-3 py-2 font-medium">Punches</th><th class="px-4 py-2 text-right font-medium">Hours</th></tr></thead>
       <tbody class="divide-y divide-zinc-100">
-      <?php foreach ($people as $p): $g = $grid[$p['id']][$date]; ?>
+      <?php foreach ($rows as [$p, $date]): $g = $grid[$p['id']][$date]; ?>
         <tr class="align-top">
-          <td class="px-4 py-2"><a href="<?= url('hrms-attendance.php?user=' . $p['id'] . '&month=' . substr($date, 0, 7)) ?>" class="font-medium text-zinc-900 hover:text-brand-600"><?= e($p['name']) ?></a>
+          <td class="whitespace-nowrap px-4 py-2 text-zinc-600"><?= date('D, j M', strtotime($date)) ?></td>
+          <td class="px-4 py-2"><a href="<?= url('hrms-attendance.php?user=' . $p['id'] . '&from=' . $from . '&to=' . $to) ?>" class="font-medium text-zinc-900 hover:text-brand-600"><?= e($p['name']) ?></a>
             <p class="text-[11px] text-zinc-400"><?= e(implode(' · ', array_filter([$p['employee_id'], $p['dept_name']]))) ?></p></td>
           <td class="px-2 py-2"><?= $chip($g['code']) ?></td>
           <td class="px-3 py-2 tabular-nums"><?= att_time($g['in']) ?></td>
           <td class="px-3 py-2 tabular-nums"><?= att_time($g['out']) ?></td>
-          <td class="px-3 py-2 space-y-1"><?php foreach ($punches[$p['id']] ?? [] as $x) echo $punchRow($x); ?></td>
+          <td class="px-3 py-2 space-y-1"><?php foreach ($punches[$p['id']][$date] ?? [] as $x) echo $punchRow($x); ?></td>
           <td class="px-4 py-2 text-right tabular-nums"><?= att_hm($g['secs']) ?></td>
         </tr>
       <?php endforeach; ?>
-      <?php if (!$people): ?><tr><td colspan="6" class="px-4 py-8 text-center text-zinc-400">Nobody matches.</td></tr><?php endif; ?>
+      <?php if (!$rows): ?><tr><td colspan="7" class="px-4 py-8 text-center text-zinc-400">Nobody matches.</td></tr><?php endif; ?>
       </tbody>
     </table>
     </div>
     <?php if ($pages > 1): ?>
       <div class="flex items-center justify-between border-t border-zinc-100 px-4 py-2 text-[12px] text-zinc-500">
-        <span><?= ($page - 1) * $per + 1 ?>–<?= min($page * $per, $total) ?> of <?= $total ?> employees</span>
+        <span><?= ($page - 1) * $per + 1 ?>–<?= min($page * $per, $total) ?> of <?= $total ?> records</span>
         <span class="flex items-center gap-1">
           <?php if ($page > 1): ?><a href="?<?= $qs(['page' => $page - 1]) ?>" class="<?= ATT_BTN2 ?> !py-1">Previous</a><?php endif; ?>
           <span class="px-2">Page <?= $page ?> of <?= $pages ?></span>

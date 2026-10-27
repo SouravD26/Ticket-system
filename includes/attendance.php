@@ -25,6 +25,25 @@ function att_workday(?int $ts = null): string
 }
 
 /**
+ * A From-To filter as [from, to]: swapped when entered backwards, never past today,
+ * and at most 92 days long so one search cannot load a whole year of punches.
+ * A missing end takes the other end; both missing gives [$default, $default].
+ */
+function att_range(string $from, string $to, string $default): array
+{
+    $from = strtotime($from) ? date('Y-m-d', strtotime($from)) : '';
+    $to   = strtotime($to)   ? date('Y-m-d', strtotime($to))   : '';
+    if ($from === '' && $to === '') return [$default, $default];
+    if ($from === '') $from = $to;
+    if ($to === '')   $to = $from;
+    if ($from > $to) [$from, $to] = [$to, $from];
+    $to = min($to, date('Y-m-d'));
+    $from = min($from, $to);
+    $from = max($from, date('Y-m-d', strtotime("$to -91 days")));
+    return [$from, $to];
+}
+
+/**
  * The row still waiting for a punch out, if any.
  *
  * A shift that began before 6 AM yesterday's side of the boundary and runs past it
